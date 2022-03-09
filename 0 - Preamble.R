@@ -14,6 +14,7 @@ Dir.Base <- getwd() # read out the project directory
 ## DATA ---------------------------------------------------------------------
 Dir.Data <- file.path(Dir.Base, "Data")
 Dir.D.Fricke <- file.path(Dir.Data, "Fricke2021")
+Dir.D.Projections <- file.path(Dir.Data, "Projections")
 DataDirs <- c(Dir.Data, Dir.D.Fricke)
 CreateDir <- sapply(DataDirs, function(x) if(!dir.exists(x)) dir.create(x))
 ## EXPORTS ------------------------------------------------------------------
@@ -34,7 +35,10 @@ install.load.package <- function(x) {
 package_vec <- c(
   "devtools", # needed for non-cran packages further down
   "rgeos", # for loading shapefiles
-  "tidyverse" # for data handling
+  "tidyverse", # for data handling
+  "rgbif", # for occurrence retrieval
+  "pbapply", # for apply with progress bar
+  "data.table" # for data handling
   
 )
 sapply(package_vec, install.load.package)
