@@ -15,7 +15,8 @@ Dir.Base <- getwd() # read out the project directory
 Dir.Data <- file.path(Dir.Base, "Data")
 Dir.D.Fricke <- file.path(Dir.Data, "Fricke2021")
 Dir.D.Projections <- file.path(Dir.Data, "Projections")
-DataDirs <- c(Dir.Data, Dir.D.Fricke)
+Dir.D.Occurrences <- file.path(Dir.Data, "Occurrences")
+DataDirs <- c(Dir.Data, Dir.D.Fricke, Dir.D.Occurrences)
 CreateDir <- sapply(DataDirs, function(x) if(!dir.exists(x)) dir.create(x))
 ## EXPORTS ------------------------------------------------------------------
 Dir.Exports <- file.path(Dir.Base, "Exports")
