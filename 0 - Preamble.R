@@ -14,9 +14,10 @@ Dir.Base <- getwd() # read out the project directory
 ## DATA ---------------------------------------------------------------------
 Dir.Data <- file.path(Dir.Base, "Data")
 Dir.D.Fricke <- file.path(Dir.Data, "Fricke2021")
+Dir.D.Climatologies <- file.path(Dir.Data, "Climatologies")
 Dir.D.Projections <- file.path(Dir.Data, "Projections")
 Dir.D.Occurrences <- file.path(Dir.Data, "Occurrences")
-DataDirs <- c(Dir.Data, Dir.D.Fricke, Dir.D.Occurrences)
+DataDirs <- c(Dir.Data, Dir.D.Climatologies, Dir.D.Fricke, Dir.D.Occurrences)
 CreateDir <- sapply(DataDirs, function(x) if(!dir.exists(x)) dir.create(x))
 ## EXPORTS ------------------------------------------------------------------
 Dir.Exports <- file.path(Dir.Base, "Exports")
@@ -39,7 +40,9 @@ package_vec <- c(
   "tidyverse", # for data handling
   "rgbif", # for occurrence retrieval
   "pbapply", # for apply with progress bar
-  "data.table" # for data handling
+  "data.table", # for data handling
+  "rnaturalearth", # for landmask in projection kriging
+  "rnaturalearthdata" # for landmask in projection kriging
   
 )
 sapply(package_vec, install.load.package)

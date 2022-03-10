@@ -173,6 +173,10 @@ nets_df <- metanet[metanet$study.id %in% names(List_ls), ]
 colnames(nets_df)[3:4] <- c("Lat", "Lon")
 nets_shp <- KrigR:::buffer_Points(nets_df, Buffer = 10, ID = "study.id")
 
+## LANDMASK ----------------------------------------------------------------
+Land_shp <- ne_countries(scale = 10, type = "countries")
+Land_shp <- crop(Land_shp, extent(nets_shp))
+
 ## BASELINE ----------------------------------------------------------------
 message("### HISTORICAL ERA5-LAND DATA ###")
 if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
@@ -180,7 +184,7 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
   Enviro_ras <- stack(file.path(Dir.Data, "Enviro_Pres.nc"))
 }else{
   print("Obtaining environmental data")
-  if(!file.exists(file.path(Dir.Data, "AT_Climatology.nc"))){
+  if(!file.exists(file.path(Dir.D.Climatologies, "AT_Climatology.nc"))){
     download_ERA(
       Variable = "2m_temperature",
       DataSet = "era5-land",
@@ -190,13 +194,13 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
       TStep = 1,
       API_User = API_User,
       API_Key = API_Key,
-      Dir = Dir.Data,
+      Dir = Dir.D.Climatologies,
       FileName = "AT_Climatology.nc",
       SingularDL = TRUE
     )
   }
-  AT_ras <- stack(file.path(Dir.Data, "AT_Climatology.nc"))
-  if(!file.exists(file.path(Dir.Data, "PP_Climatology.nc"))){
+  AT_ras <- stack(file.path(Dir.D.Climatologies, "AT_Climatology.nc"))
+  if(!file.exists(file.path(Dir.D.Climatologies, "PP_Climatology.nc"))){
     download_ERA(
       Variable = "total_precipitation",
       PrecipFix = TRUE,
@@ -207,12 +211,12 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
       TStep = 1,
       API_User = API_User,
       API_Key = API_Key,
-      Dir = Dir.Data,
+      Dir = Dir.D.Climatologies,
       FileName = "PP_Climatology.nc",
       SingularDL = TRUE
     )
   }
-  PP_ras <- stack(file.path(Dir.Data, "PP_Climatology.nc"))
+  PP_ras <- stack(file.path(Dir.D.Climatologies, "PP_Climatology.nc"))
   Enviro_ras <- stack(mean(AT_ras), mean(PP_ras))
   writeRaster(Enviro_ras, format = "CDF", filename = file.path(Dir.Data, "Enviro_Pres.nc"))
 }
@@ -254,6 +258,7 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   GMTED <- download_DEM(
     Train_ras = train_SSP,
     Target_res = train_ERA,
+    Shape = Land_shp,
     Keep_Temporary = TRUE,
     Dir = Dir.Data
   )
@@ -261,36 +266,36 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   Cov_fine <- GMTED[[2]]
   
   ### SSP ----
-  if(!file.exists(file.path(Dir.Data, "SSP585_2041-2060_nmax120.nc"))){
+  if(!file.exists(file.path(Dir.D.Projections, "SSP585_2041-2060_nmax120.nc"))){
     Output_SSP <- krigR(
       Data = train_SSP,
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
       KrigingEquation = "ERA ~ DEM",  
       Cores = 1, 
-      Dir = Dir.Data,  
+      Dir = Dir.D.Projections,  
       FileName = "SSP585_2041-2060_nmax120", 
       Keep_Temporary = FALSE,
       nmax = 120
     )
   }
-  SSP_ras <- stack(file.path(Dir.Data, "SSP585_2041-2060_nmax120.nc"))
+  SSP_ras <- stack(file.path(Dir.D.Projections, "SSP585_2041-2060_nmax120.nc"))
   
   ### HISTORICAL ----
-  if(!file.exists(file.path(Dir.Data, "CMIP-HIST_nmax120.nc"))){
+  if(!file.exists(file.path(Dir.D.Projections, "CMIP-HIST_nmax120.nc"))){
     Output_SSP <- krigR(
       Data = train_HIST,
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
       KrigingEquation = "ERA ~ DEM",  
       Cores = 1, 
-      Dir = Dir.Data,  
+      Dir = Dir.D.Projections,  
       FileName = "CMIP-HIST_nmax120", 
       Keep_Temporary = FALSE,
       nmax = 120
     )
   }
-  CMIP_ras <- stack(file.path(Dir.Data, "CMIP-HIST_nmax120.nc"))
+  CMIP_ras <- stack(file.path(Dir.D.Projections, "CMIP-HIST_nmax120.nc"))
   
   ### DIFFERENCE AND FUSING
   Projections_stack <- stack(CMIP_ras,
@@ -301,6 +306,7 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   print("Raw projection data already kriged")
 }
 Projections_stack <- stack(file.path(Dir.Data, "Projections.nc"))
+plot(Projections_stack)
 
 # EXTINCTION PROXIES =======================================================
 stop("create species by site by extinction proxy df here")
