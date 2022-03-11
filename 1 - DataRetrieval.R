@@ -78,8 +78,8 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
   load(file.path(Dir.Data, "Networks.RData")) 
 }
 
-message("currently only running for two networks for testing purposes")
-List_ls <- List_ls[1:2]
+# message("currently only running for two networks for testing purposes")
+# List_ls <- List_ls[1:2]
 
 # library(leaflet)
 # 
@@ -278,6 +278,12 @@ if(sum(unique(plants_spec) %nin% occ_spec) > 0){
   NonOcc_spec <- c(NonOcc_spec, names(plants_gbif[lapply(plants_gbif, nrow) == 0]))
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
   plants_gbif <- plants_gbif[lapply(plants_gbif, nrow) != 0] # remove species for which no records are present
+  ## remove species for which 20 records or less are present
+  n_occ <- unlist(lapply(plants_gbif, nrow))
+  NonOcc_spec <- c(NonOcc_spec, names(plants_gbif)[n_occ <= 20])
+  save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
+  plants_gbif <- plants_gbif[n_occ > 20]
+  ## saving data
   hush_ls <- pblapply(names(plants_gbif), function(df){
     x <- na.omit(plants_gbif[[df]][, c("key", "decimalLatitude", "decimalLongitude")])
     x <- Gbif_Outliers(x = x, Enviro_ras = Enviro_ras, Centroids = Shapes_ct)
@@ -300,6 +306,12 @@ if(sum(unique(animals_spec) %nin% occ_spec) > 0){
   NonOcc_spec <- c(NonOcc_spec, names(animals_gbif[lapply(animals_gbif, nrow) == 0]))
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
   animals_gbif <- animals_gbif[lapply(animals_gbif, nrow) != 0] # remove species for which no records are present
+  ## remove species for which 20 records or less are present
+  n_occ <- unlist(lapply(animals_gbif, nrow))
+  NonOcc_spec <- c(NonOcc_spec, names(animals_gbif)[n_occ <= 20])
+  save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
+  animals_gbif <- animals_gbif[n_occ > 20]
+  ## saving data
   hush_ls <- pblapply(names(animals_gbif), function(df){
     x <- na.omit(animals_gbif[[df]][, c("key", "decimalLatitude", "decimalLongitude")])
     x <- Gbif_Outliers(x = x, Enviro_ras = Enviro_ras, Centroids = Shapes_ct)
