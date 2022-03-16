@@ -78,8 +78,8 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
   load(file.path(Dir.Data, "Networks.RData")) 
 }
 
-# message("currently only running for two networks for testing purposes")
-# List_ls <- List_ls[1:2]
+message("currently only running for two networks for testing purposes")
+List_ls <- List_ls[1:2]
 
 # library(leaflet)
 # 
