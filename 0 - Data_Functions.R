@@ -16,6 +16,7 @@ Gbif_Species <- function(species = NULL, year_vec = 2000:2020){
     while(is.na(Gbif)){
       try(Gbif <- occ_data(scientificName = unique(species),
                            hasGeospatialIssue = FALSE,
+                           hasCoordinate = TRUE,
                            year = k,
                            limit = 1e5
       ))
