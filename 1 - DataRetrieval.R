@@ -78,7 +78,7 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
   load(file.path(Dir.Data, "Networks.RData")) 
 }
 
-message("currently only running for two networks for testing purposes")
+# message("currently only running for two networks for testing purposes")
 # List_ls <- List_ls[1:2]
 
 # library(leaflet)
@@ -150,10 +150,11 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
     )
   }
   AT_ras <- stack(file.path(Dir.D.Climatologies, "AT_Climatology.nc"))
+
   if(!file.exists(file.path(Dir.D.Climatologies, "QS_Climatology.nc"))){
     download_ERA(
       Variable = "volumetric_soil_water_layer_1",
-      PrecipFix = TRUE,
+      PrecipFix = FALSE,
       DataSet = "era5-land",
       DateStart = "1982-01-01",
       DateStop = "1999-12-31",
@@ -173,6 +174,7 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
 plot(Enviro_ras[[1]])
 plot(nets_shp, add = TRUE)
 
+
 ## PROJECTIONS -------------------------------------------------------------
 message("### PROJECTION DATA ###")
 print("Loading projection data")
@@ -184,7 +186,7 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   train_ERA <- mask(train_ERA, nets_shp)
   
   ### SSP ----
-  train_SSP <- stack(c(file.path(Dir.D.Projections, "ssp245_tas_2081-2000.nc")
+train_SSP <- stack(c(file.path(Dir.D.Projections, "ssp245_tas_2081-2000.nc")
                        # ,
                        # file.path(Dir.D.Projections, "ssp245_qs_2081-2000.nc")
                        )
@@ -208,7 +210,6 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
 message("### PROJECTION KRIGING ###")
 if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   print("Kriging raw projection data")
-  
   ### TEMPERATURE ----
   #### Covariates ----
   GMTED <- download_DEM(
@@ -237,6 +238,7 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
       nmax = 120
     )
   }
+
   TAS_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2000_nmax120.nc")))
   
   #### HISTORICAL ----
@@ -329,6 +331,7 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
       nmax = 120
     )
   }
+
   CMIP_qs_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_qs_nmax120.nc")))
   
   ### DIFFERENCE AND FUSING ----
@@ -460,7 +463,6 @@ if(file.exists(file.path(Dir.Data, "ClimPrefs.RData"))){
 
 # EXTINCTION PROXIES =======================================================
 message("### EXTINCTION PROXIES")
-Species_vec <- 
 stop("create species by site by extinction proxy df here")
 
 ## Network Centrality ------------------------------------------------------
@@ -468,10 +470,6 @@ stop("create species by site by extinction proxy df here")
 ## Safety Margins ----------------------------------------------------------
 
 ## IUCN Criteria -----------------------------------------------------------
-
-
-
-iucn
 
 
 
