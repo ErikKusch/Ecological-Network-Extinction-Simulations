@@ -4,7 +4,7 @@
 #'  - Network Data Loading and Formatting from Fricke 2021
 #'  DEPENDENCIES:
 #'  - 
-#' AUTHOR: [Evan Fricke]
+#' AUTHOR: [Evan Fricke, Erik Kusch]
 #' ####################################################################### #
 
 # BIPARTITE HELPERS ========================================================
