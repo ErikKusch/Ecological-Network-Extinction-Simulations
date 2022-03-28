@@ -78,8 +78,8 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
   load(file.path(Dir.Data, "Networks.RData")) 
 }
 
-message("currently only running for two networks for testing purposes")
-List_ls <- List_ls[1:2]
+# message("currently only running for two networks for testing purposes")
+# List_ls <- List_ls[1:2]
 
 # library(leaflet)
 # 
@@ -150,10 +150,11 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
     )
   }
   AT_ras <- stack(file.path(Dir.D.Climatologies, "AT_Climatology.nc"))
-  if(!file.exists(file.path(Dir.D.Climatologies, "PP_Climatology.nc"))){
+
+  if(!file.exists(file.path(Dir.D.Climatologies, "QS_Climatology.nc"))){
     download_ERA(
-      Variable = "total_precipitation",
-      PrecipFix = TRUE,
+      Variable = "volumetric_soil_water_layer_1",
+      PrecipFix = FALSE,
       DataSet = "era5-land",
       DateStart = "1982-01-01",
       DateStop = "1999-12-31",
@@ -162,16 +163,17 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
       API_User = API_User,
       API_Key = API_Key,
       Dir = Dir.D.Climatologies,
-      FileName = "PP_Climatology.nc",
+      FileName = "QS_Climatology.nc",
       SingularDL = TRUE
     )
   }
-  PP_ras <- stack(file.path(Dir.D.Climatologies, "PP_Climatology.nc"))
-  Enviro_ras <- stack(mean(AT_ras), mean(PP_ras))
+  QS_ras <- stack(file.path(Dir.D.Climatologies, "QS_Climatology.nc"))
+  Enviro_ras <- stack(mean(AT_ras), mean(QS_ras))
   writeRaster(Enviro_ras, format = "CDF", filename = file.path(Dir.Data, "Enviro_Pres.nc"))
 }
-# plot(Enviro_ras[[1]])
-# plot(nets_shp, add = TRUE)
+plot(Enviro_ras[[1]])
+plot(nets_shp, add = TRUE)
+
 
 ## PROJECTIONS -------------------------------------------------------------
 message("### PROJECTION DATA ###")
@@ -184,13 +186,21 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   train_ERA <- mask(train_ERA, nets_shp)
   
   ### SSP ----
-  train_SSP <- stack(file.path(Dir.D.Projections, "ssp245_tas_2081-2000.nc"))
+train_SSP <- stack(c(file.path(Dir.D.Projections, "ssp245_tas_2081-2000.nc")
+                       # ,
+                       # file.path(Dir.D.Projections, "ssp245_qs_2081-2000.nc")
+                       )
+                     )
   train_SSP <- train_SSP
   train_SSP <- crop(train_SSP,extent(train_ERA))
   train_SSP <- mask(train_SSP, nets_shp)
   
   ### HISTORICAL ----
-  train_HIST <- stack(file.path(Dir.D.Projections, "historical_tas_1981-2000.nc"))
+  train_HIST <- stack(c(file.path(Dir.D.Projections, "historical_tas_1981-2000.nc")
+                        # ,
+                        # file.path(Dir.D.Projections, "historical_qs_1981-2000.nc")
+                        )
+                      )
   train_HIST <- train_HIST
   train_HIST <- crop(train_HIST,extent(train_ERA))
   train_HIST <- mask(train_HIST, nets_shp)
@@ -200,21 +210,24 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
 message("### PROJECTION KRIGING ###")
 if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   print("Kriging raw projection data")
-  ### Covariates ----
+  ### TEMPERATURE ----
+  #### Covariates ----
   GMTED <- download_DEM(
     Train_ras = train_SSP,
     Target_res = train_ERA,
     Shape = Land_shp,
-    Keep_Temporary = TRUE,
-    Dir = Dir.Data
+    Keep_Temporary = FALSE,
+    Dir = Dir.D.Projections
   )
   Cov_coarse <- GMTED[[1]]
+  Cov_coarse <- mask(Cov_coarse, nets_shp)
   Cov_fine <- GMTED[[2]]
+  Cov_fine <- mask(Cov_fine, nets_shp)
   
-  ### SSP ----
+  #### SSP ----
   if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2000_nmax120.nc"))){
     Output_SSP <- krigR(
-      Data = train_SSP,
+      Data = train_SSP[[1]],
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
       KrigingEquation = "ERA ~ DEM",  
@@ -225,33 +238,116 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
       nmax = 120
     )
   }
-  SSP_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2000_nmax120.nc")))
+
+  TAS_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2000_nmax120.nc")))
   
-  ### HISTORICAL ----
-  if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_nmax120.nc"))){
+  #### HISTORICAL ----
+  if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_tas_nmax120.nc"))){
     Output_SSP <- krigR(
-      Data = train_HIST,
+      Data = train_HIST[[1]],
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
       KrigingEquation = "ERA ~ DEM",  
       Cores = numberOfCores, 
       Dir = Dir.D.Projections,  
-      FileName = "K_CMIP-HIST_nmax120", 
+      FileName = "K_CMIP-HIST_tas_nmax120", 
       Keep_Temporary = FALSE,
       nmax = 120
     )
   }
-  CMIP_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_nmax120.nc")))
+  CMIP_tas_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_tas_nmax120.nc")))
   
-  ### DIFFERENCE AND FUSING
-  Projections_stack <- stack(CMIP_ras,
-                             SSP_ras,
-                             SSP_ras - CMIP_ras)
+  ### SOIL MOISTURE ----
+  #### Covariates ----
+  if(!file.exists(file.path(Dir.Data, "SoilCovs_ls.RData"))){
+    SoilCovs_vec <- c("tkdry", "tksat", "csol", "k_s", "lambda", "psi", "theta_s") # need these names for addressing soil covariates, documentation of these can be found here http://globalchange.bnu.edu.cn/research/soil4.jsp
+    # create lists to combine soil data into one
+    SoilCovs_ls <- as.list(rep(NA, length(SoilCovs_vec)))
+    names(SoilCovs_ls) <- c(SoilCovs_vec)
+    ## Downloading, unpacking, and stacking
+    for(Soil_Iter in SoilCovs_vec){
+      if(file.exists(file.path(Dir.D.Projections, paste0(Soil_Iter, ".nc")))) {
+        print(paste(Soil_Iter, "already downloaded and processed."))
+        SoilCovs_ls[[which(names(SoilCovs_ls) == Soil_Iter)]] <- raster(file.path(Dir.D.Projections, paste0(Soil_Iter, ".nc")))
+        next()
+      } # if not downloaded and processed yet
+      print(paste("Handling", Soil_Iter, "data."))
+      Dir.Soil <- file.path(Dir.D.Projections, Soil_Iter)
+      dir.create(Dir.Soil)
+      download.file(paste0("http://globalchange.bnu.edu.cn/download/data/worldptf/", Soil_Iter,".zip"),
+                    destfile = file.path(Dir.Soil, paste0(Soil_Iter, ".zip"))
+      ) # download data
+      unzip(file.path(Dir.Soil, paste0(Soil_Iter, ".zip")), exdir = Dir.Soil) # unzip data
+      File <- list.files(Dir.Soil, pattern = ".nc")[1] # only keep first soil layer
+      Soil_ras <- raster(file.path(Dir.Soil, File)) # load data
+      SoilCovs_ls[[which(names(SoilCovs_ls) == Soil_Iter)]] <- Soil_ras # save to list
+      writeRaster(x = Soil_ras, filename = file.path(Dir.D.Projections, Soil_Iter), format = "CDF")
+      plot(Soil_ras, main = Soil_Iter, colNA = "black")
+      unlink(Dir.Soil, recursive = TRUE)
+    }
+    SoilCovs_stack <- stack(SoilCovs_ls)
+    # range_m <- KrigR::mask_Shape(SoilCovs_stack, nets_shp)
+    SoilCovs <- crop(SoilCovs_stack, extent(nets_shp))
+    SoilCovs <- mask(SoilCovs, nets_shp)
+    Cov_coarse <- resample(x = SoilCovs, y = train_SSP)
+    Cov_fine <- resample(x = SoilCovs, y = train_ERA)
+    SoilCovs_ls <- list(Coarse = Cov_coarse,
+                        Fine = Cov_fine)
+    save(SoilCovs_ls, file = file.path(Dir.D.Projections, "SoilCovs_ls.RData"))
+    unlink(paste0(Dir.D.Projections, "/", SoilCovs_vec, ".nc"))
+  }else{
+    load(file.path(Dir.D.Projections, "SoilCovs_ls.RData"))
+    Cov_coarse <- SoilCovs_ls[[1]]
+    Cov_fine <- SoilCovs_ls[[2]]
+  }
+    
+  #### SSP ----
+  if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_qs_2081-2000_nmax120.nc"))){
+    QS_SSP <- krigR(
+      Data = train_SSP[[2]],
+      Covariates_coarse = Cov_coarse, 
+      Covariates_fine = Cov_fine,   
+      KrigingEquation = "ERA ~ DEM",  
+      Cores = numberOfCores, 
+      Dir = Dir.D.Projections,  
+      FileName = "K_ssp245_qs_2081-2000_nmax120", 
+      Keep_Temporary = FALSE,
+      nmax = 120
+    )
+  }
+  QS_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_qs_2081-2000_nmax120.nc")))
+  
+  #### HISTORICAL ----
+  if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_qs_nmax120.nc"))){
+    Output_SSP <- krigR(
+      Data = train_HIST[[2]],
+      Covariates_coarse = Cov_coarse, 
+      Covariates_fine = Cov_fine,   
+      KrigingEquation = "ERA ~ DEM",  
+      Cores = numberOfCores, 
+      Dir = Dir.D.Projections,  
+      FileName = "K_CMIP-HIST_qs_nmax120", 
+      Keep_Temporary = FALSE,
+      nmax = 120
+    )
+  }
+
+  CMIP_qs_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_qs_nmax120.nc")))
+  
+  ### DIFFERENCE AND FUSING ----
+  Projections_stack <- stack(CMIP_tas_ras,
+                             TAS_ras,
+                             TAS_ras - CMIP_tas_ras,
+                             CMIP_qs_ras,
+                             QS_ras,
+                             QS_ras - CMIP_qs_ras)
   writeRaster(Projections_stack, filename = file.path(Dir.Data, "Projections"), format = "CDF")
 }else{
   print("Raw projection data already kriged")
 }
 Projections_stack <- stack(file.path(Dir.Data, "Projections.nc"))
+names(Projections_stack) <- c("Tair.Historical", "Tair.SSP245", "Tair.Diff",
+                              "Qsoil.Historical", "Qsoil.SSP245", "Qsoil.Diff")
 # plot(Projections_stack)
 
 # OCCURRENCE DATA ==========================================================
@@ -374,10 +470,6 @@ stop("create species by site by extinction proxy df here")
 ## Safety Margins ----------------------------------------------------------
 
 ## IUCN Criteria -----------------------------------------------------------
-
-
-
-
 
 
 
