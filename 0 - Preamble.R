@@ -42,8 +42,19 @@ package_vec <- c(
   "pbapply", # for apply with progress bar
   "data.table", # for data handling
   "rnaturalearth", # for landmask in projection kriging
-  "rnaturalearthdata" # for landmask in projection kriging
-  
+  "rnaturalearthdata", # for landmask in projection kriging
+  "rredlist", # for IUCN risk retrieval
+  "ConR", # for computation of IUCN risks
+  # "CoordinateCleaner", # for additional occurrence cleaning; NOT NEEDED ANYMORE
+  "igraph", # for graph operations
+  "FD", # for gower distance of trait data
+  "reshape2", # for making network matrices into plottable data frames via melt()
+  "bipartite", # for bipartite network analyses
+  "leaflet", # for html map products to investigate networks separately
+  "leafpop", # for graph popups in leaflet output
+  "cowplot", # for arranging of plots
+  "gridExtra", # for table grobs as legends in plots
+  "dplyr" # for data cleaning
 )
 sapply(package_vec, install.load.package)
 
@@ -76,4 +87,8 @@ hush <- function(code){
 
 Sort.DF <- function(Data = NULL, Column = NULL){
   Data[order(Data[ , Column] ), ]
+}
+
+if(!exists("IUCN_Key")){
+  IUCN_Key <- readline(prompt = "Please enter your IUCN API key.")
 }

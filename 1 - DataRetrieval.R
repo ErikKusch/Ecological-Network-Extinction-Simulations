@@ -3,8 +3,11 @@
 #' CONTENTS: 
 #'  - Data Download
 #'  - Data Manipulation
+#'  - Extinction Risk Calculation
 #'  DEPENDENCIES:
-#'  - 0 - Preamble.R
+#'  - "0 - Preamble.R"
+#'  - "0 - Fricke_Functions.R"
+#'  - "0 - Data_Functions.R"
 #' AUTHOR: [Erik Kusch]
 #' ####################################################################### #
 
@@ -95,10 +98,11 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
 ## BUFFER CREATION ---------------------------------------------------------
 nets_df <- metanet[metanet$study.id %in% names(List_ls), ]
 colnames(nets_df)[3:4] <- c("Lat", "Lon")
-nets_shp <- KrigR:::buffer_Points(nets_df, Buffer = 10, ID = "study.id")
+nets_shp <- KrigR:::buffer_Points(nets_df, Buffer = 5, ID = "study.id")
 
 ## LANDMASK ----------------------------------------------------------------
-Countries_shp <- ne_countries(scale = 10, type = "countries")
+Countries_shp <- ne_countries(scale = 10, type = "countries") # may need to run: devtools::install_github("ropensci/rnaturalearthhires")
+CountriesCoarse_shp <- ne_countries(scale = 50, type = "countries")
 Land_shp <- crop(Countries_shp, extent(nets_shp))
 
 ## CENTROIDS ---------------------------------------------------------------
@@ -126,6 +130,46 @@ if(file.exists(file.path(Dir.D.Occurrences, "Centroids.RData"))){
   save(Shapes_ct, file = file.path(Dir.D.Occurrences, "Centroids.RData"))
 }
 
+## PROTECTED AREAS ---------------------------------------------------------
+# CITATION: UNEP-WCMC and IUCN (2022), Protected Planet: The World Database on Protected Areas (WDPA) and World Database on Other Effective Area-based Conservation Measures (WD-OECM) [Online], March 2022, Cambridge, UK: UNEP-WCMC and IUCN. Available at: www.protectedplanet.net.
+Dir.D.Protected <- file.path(Dir.Data, "Protected Areas")
+if(!dir.exists(Dir.D.Protected)){dir.create(Dir.D.Protected)}
+if(!file.exists(file.path(Dir.D.Protected, "ProtectedAreas.RData"))){
+  download.file(url = "https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_Mar2022_Public_all_shp.zip", 
+                destfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp.zip"))
+  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp.zip"), 
+        exdir = Dir.D.Protected,
+        files = c("WDPA_WDOECM_Mar2022_Public_all_shp_0.zip",
+                  "WDPA_WDOECM_Mar2022_Public_all_shp_1.zip",
+                  "WDPA_WDOECM_Mar2022_Public_all_shp_2.zip"))
+  ## repo1
+  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_0.zip"),
+        exdir = Dir.D.Protected)
+  ProtectedAreas_shp <- readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
+  save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+  ## repo2
+  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_1.zip"),
+        exdir = Dir.D.Protected)
+  ProtectedAreas_shp <- rbind(ProtectedAreas_shp,
+                              readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
+  )
+  save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+  ## repo3
+  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_0.zip"),
+        exdir = Dir.D.Protected)
+  ProtectedAreas_shp <- rbind(ProtectedAreas_shp,
+                              readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
+  )
+  save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+  ## combine shapes
+  # ProtectedAreas_shp <- raster::aggregate(ProtectedAreas_shp)
+  # save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+  ## clean directory
+  unlink(list.files(Dir.D.Protected, full.names = TRUE, 
+                    pattern = "WDPA_WDOECM_Mar2022_Public_all_shp"))
+}
+load(file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+
 # ABIOTIC DATA =============================================================
 ## BASELINE ----------------------------------------------------------------
 message("### HISTORICAL ERA5-LAND DATA ###")
@@ -140,7 +184,7 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
       DataSet = "era5-land",
       DateStart = "1982-01-01",
       DateStop = "1999-12-31",
-      TResolution = "month",
+      TResolution = "monsth",
       TStep = 1,
       API_User = API_User,
       API_Key = API_Key,
@@ -150,7 +194,7 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
     )
   }
   AT_ras <- stack(file.path(Dir.D.Climatologies, "AT_Climatology.nc"))
-
+  
   if(!file.exists(file.path(Dir.D.Climatologies, "QS_Climatology.nc"))){
     download_ERA(
       Variable = "volumetric_soil_water_layer_1",
@@ -171,39 +215,43 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
   Enviro_ras <- stack(mean(AT_ras), mean(QS_ras))
   writeRaster(Enviro_ras, format = "CDF", filename = file.path(Dir.Data, "Enviro_Pres.nc"))
 }
-plot(Enviro_ras[[1]])
-plot(nets_shp, add = TRUE)
-
+# plot(Enviro_ras[[1]])
+# plot(nets_shp, add = TRUE)
 
 ## PROJECTIONS -------------------------------------------------------------
 message("### PROJECTION DATA ###")
 print("Loading projection data")
 if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   print("Loading raw projection data")
-  message("For now, we are just using air temperature data")
   train_ERA <- Enviro_ras[[1]]
   train_ERA <- crop(train_ERA, extent(nets_shp))
   train_ERA <- mask(train_ERA, nets_shp)
   
   ### SSP ----
-train_SSP <- stack(c(file.path(Dir.D.Projections, "ssp245_tas_2081-2000.nc")
-                       # ,
-                       # file.path(Dir.D.Projections, "ssp245_qs_2081-2000.nc")
-                       )
-                     )
-  train_SSP <- train_SSP
-  train_SSP <- crop(train_SSP,extent(train_ERA))
-  train_SSP <- mask(train_SSP, nets_shp)
+  train_SSP <- lapply(c(file.path(Dir.D.Projections, "ssp245_tas_2081-2100.nc"), 
+                       file.path(Dir.D.Projections, "ssp245_mrsos_2081-2100.nc")
+                       ), stack)
+  train_SSP <- lapply(train_SSP, FUN = function(x){
+    x <- crop(x,extent(train_ERA))
+    x <- mask(x, nets_shp)
+    mean(x)
+  })
+  train_SSP[[1]] <- resample(x = train_SSP[[1]], y = train_SSP[[2]])
+  train_SSP <- stack(train_SSP)
+  names(train_SSP) <- c("Temperature", "Moisture")
   
   ### HISTORICAL ----
-  train_HIST <- stack(c(file.path(Dir.D.Projections, "historical_tas_1981-2000.nc")
-                        # ,
-                        # file.path(Dir.D.Projections, "historical_qs_1981-2000.nc")
-                        )
-                      )
-  train_HIST <- train_HIST
-  train_HIST <- crop(train_HIST,extent(train_ERA))
-  train_HIST <- mask(train_HIST, nets_shp)
+  train_HIST <- lapply(c(file.path(Dir.D.Projections, "historical_tas_1981-2000.nc"), 
+                        file.path(Dir.D.Projections, "historical_mrsos_1981-2000.nc")
+  ), stack)
+  train_HIST <- lapply(train_HIST, FUN = function(x){
+    x <- crop(x,extent(train_ERA))
+    x <- mask(x, nets_shp)
+    mean(x)
+  })
+  train_HIST[[1]] <- resample(x = train_HIST[[1]], y = train_HIST[[2]])
+  train_HIST <- stack(train_HIST)
+  names(train_HIST) <- c("Temperature", "Moisture")
 }
 
 ## KRIGING -----------------------------------------------------------------
@@ -225,26 +273,25 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   Cov_fine <- mask(Cov_fine, nets_shp)
   
   #### SSP ----
-  if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2000_nmax120.nc"))){
+  if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2100_nmax120.nc"))){
     Output_SSP <- krigR(
-      Data = train_SSP[[1]],
+      Data = train_SSP$Temperature,
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
       KrigingEquation = "ERA ~ DEM",  
       Cores = numberOfCores, 
       Dir = Dir.D.Projections,  
-      FileName = "K_ssp245_tas_2081-2000_nmax120", 
+      FileName = "K_ssp245_tas_2081-2100_nmax120", 
       Keep_Temporary = FALSE,
       nmax = 120
     )
   }
-
-  TAS_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2000_nmax120.nc")))
+  TAS_ras <- raster(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2100_nmax120.nc"))
   
   #### HISTORICAL ----
   if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_tas_nmax120.nc"))){
     Output_SSP <- krigR(
-      Data = train_HIST[[1]],
+      Data = train_HIST$Temperature,
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
       KrigingEquation = "ERA ~ DEM",  
@@ -255,11 +302,11 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
       nmax = 120
     )
   }
-  CMIP_tas_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_tas_nmax120.nc")))
+  CMIP_tas_ras <- raster(file.path(Dir.D.Projections, "K_CMIP-HIST_tas_nmax120.nc"))
   
   ### SOIL MOISTURE ----
   #### Covariates ----
-  if(!file.exists(file.path(Dir.Data, "SoilCovs_ls.RData"))){
+  if(!file.exists(file.path(Dir.D.Projections, "SoilCovs_ls.RData"))){
     SoilCovs_vec <- c("tkdry", "tksat", "csol", "k_s", "lambda", "psi", "theta_s") # need these names for addressing soil covariates, documentation of these can be found here http://globalchange.bnu.edu.cn/research/soil4.jsp
     # create lists to combine soil data into one
     SoilCovs_ls <- as.list(rep(NA, length(SoilCovs_vec)))
@@ -300,47 +347,48 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
     Cov_coarse <- SoilCovs_ls[[1]]
     Cov_fine <- SoilCovs_ls[[2]]
   }
-    
+  
   #### SSP ----
-  if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_qs_2081-2000_nmax120.nc"))){
+  if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_mrsos_2081-2100_nmax120.nc"))){
     QS_SSP <- krigR(
-      Data = train_SSP[[2]],
+      Data = train_SSP$Moisture,
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
-      KrigingEquation = "ERA ~ DEM",  
+      KrigingEquation = "ERA ~ tkdry+tksat+csol+k_s+lambda+psi+theta_s",  
       Cores = numberOfCores, 
       Dir = Dir.D.Projections,  
-      FileName = "K_ssp245_qs_2081-2000_nmax120", 
+      FileName = "K_ssp245_mrsos_2081-2100_nmax120", 
       Keep_Temporary = FALSE,
       nmax = 120
     )
   }
-  QS_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_qs_2081-2000_nmax120.nc")))
+  MRSOS_ras <- mean(stack(file.path(Dir.D.Projections, "K_ssp245_mrsos_2081-2100_nmax120.nc"))) * 0.013
+  MRSOS_ras <- reclassify(MRSOS_ras, cbind(-Inf, 0, 0))
   
   #### HISTORICAL ----
-  if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_qs_nmax120.nc"))){
+  if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_mrsos_nmax120.nc"))){
     Output_SSP <- krigR(
-      Data = train_HIST[[2]],
+      Data = train_HIST$Moisture,
       Covariates_coarse = Cov_coarse, 
       Covariates_fine = Cov_fine,   
-      KrigingEquation = "ERA ~ DEM",  
+      KrigingEquation = "ERA ~ tkdry+tksat+csol+k_s+lambda+psi+theta_s",  
       Cores = numberOfCores, 
       Dir = Dir.D.Projections,  
-      FileName = "K_CMIP-HIST_qs_nmax120", 
+      FileName = "K_CMIP-HIST_mrsos_nmax120", 
       Keep_Temporary = FALSE,
       nmax = 120
     )
   }
-
-  CMIP_qs_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_qs_nmax120.nc")))
+  CMIP_mrsos_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_mrsos_nmax120.nc"))) * 0.013
+  CMIP_mrsos_ras <- reclassify(CMIP_mrsos_ras, cbind(-Inf, 0, 0))
   
   ### DIFFERENCE AND FUSING ----
   Projections_stack <- stack(CMIP_tas_ras,
                              TAS_ras,
                              TAS_ras - CMIP_tas_ras,
-                             CMIP_qs_ras,
-                             QS_ras,
-                             QS_ras - CMIP_qs_ras)
+                             CMIP_mrsos_ras,
+                             MRSOS_ras,
+                             MRSOS_ras - CMIP_mrsos_ras)
   writeRaster(Projections_stack, filename = file.path(Dir.Data, "Projections"), format = "CDF")
 }else{
   print("Raw projection data already kriged")
@@ -352,24 +400,33 @@ names(Projections_stack) <- c("Tair.Historical", "Tair.SSP245", "Tair.Diff",
 
 # OCCURRENCE DATA ==========================================================
 message("### OCCURRENCE DATA ###")
-
+## species for which no data is presented and no data could be obtained previously
 if(file.exists(file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))){
   load(file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
 }else{
   NonOcc_spec <- c()
 }
-
+## species for which data is present
 occ_fs <- list.files(Dir.D.Occurrences)
-occ_spec <- c(gsub(occ_fs, pattern = ".rds", replacement = ""), NonOcc_spec)
+occ_spec <- c(tools::file_path_sans_ext(occ_fs), NonOcc_spec)
 ### Plants ####
 print("PLANTS")
-plants_spec <- unlist(lapply(List_ls, FUN = function(x){rownames(x)}))
-if(sum(unique(plants_spec) %nin% occ_spec) > 0){
-  plants_occ <- occ_data(scientificName = unique(plants_spec))
-  plants_occ <- lapply(plants_occ, FUN = function(x){nrow(x[[2]])})
+plants_spec <- unique(unlist(lapply(List_ls, FUN = function(x){rownames(x)})))
+if(sum(plants_spec %nin% occ_spec) > 0){
+  plants_occ <- occ_data(scientificName = plants_spec[plants_spec %nin% occ_spec])
+  if(sum(plants_spec %nin% occ_spec) == 1){
+    plants_occ <- list(nrow(plants_occ$data)) 
+    names(plants_occ) <- plants_spec[plants_spec %nin% occ_spec]
+  }else{
+    plants_occ <- lapply(plants_occ, FUN = function(x){nrow(x[[2]])})
+  }
   Failed_plants <- names(plants_occ)[which(unlist(plants_occ) == 0)]
   if(length(Failed_plants) != 0){stop("Not all plant species are found on gbif")}
-  plants_gbif <- Gbif_Species(species = plants_spec, year_vec = 1982:1999)
+  plants_gbif <- Gbif_Species(species = plants_spec[plants_occ %nin% occ_spec], year_vec = 1982:1999)
+  if(sum(plants_spec %nin% occ_spec) == 1){
+    plants_gbif <- list(plants_gbif)
+    names(plants_gbif) <- plants_spec[plants_spec %nin% occ_spec]
+  }
   print("Identifying outliers & saving occurrence data")
   NonOcc_spec <- c(NonOcc_spec, names(plants_gbif[lapply(plants_gbif, nrow) == 0]))
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
@@ -379,9 +436,22 @@ if(sum(unique(plants_spec) %nin% occ_spec) > 0){
   NonOcc_spec <- c(NonOcc_spec, names(plants_gbif)[n_occ <= 20])
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
   plants_gbif <- plants_gbif[n_occ > 20]
+  ## outliers
+  # print("Identifying Outliers")
+  # hush_ls <- lapply(names(plants_gbif), function(df){
+  #   x <- na.omit(as.data.frame(plants_gbif[[df]])[, c("key", "decimalLatitude", "decimalLongitude")])
+  #   x$species <- df
+  #   x
+  # })
+  # plants_df <- na.omit(do.call(rbind, hush_ls))
+  # plants_df <- clean_coordinates(plants_df,
+  #                                lat = "decimalLatitude",
+  #                                lon = "decimalLongitude",
+  #                                verbose = FALSE)
+  # plants_gbif <- split(plants_df, f = plants_df$species)
   ## saving data
   hush_ls <- pblapply(names(plants_gbif), function(df){
-    x <- na.omit(plants_gbif[[df]][, c("key", "decimalLatitude", "decimalLongitude")])
+    x <- plants_gbif[[df]][,-4] # remove species column
     x <- Gbif_Outliers(x = x, Enviro_ras = Enviro_ras, Centroids = Shapes_ct)
     saveRDS(x, file = file.path(Dir.D.Occurrences, paste0(df, ".rds")))
   }) 
@@ -391,14 +461,22 @@ if(sum(unique(plants_spec) %nin% occ_spec) > 0){
 
 ### Animals ####
 print("ANIMALS")
-animals_spec <- unlist(lapply(List_ls, FUN = function(x){colnames(x)}))
-if(sum(unique(animals_spec) %nin% occ_spec) > 0){
-  animals_occ <- occ_data(scientificName = unique(animals_spec))
-  animals_occ <- lapply(animals_occ, FUN = function(x){nrow(x[[2]])})
+animals_spec <- unique(unlist(lapply(List_ls, FUN = function(x){colnames(x)})))
+if(sum(animals_spec %nin% occ_spec) > 0){
+  animals_occ <- occ_data(scientificName = animals_spec[animals_spec %nin% occ_spec])
+  if(sum(animals_spec %nin% occ_spec) == 1){
+    animals_occ <- list(nrow(animals_occ$data)) 
+    names(animals_occ) <- animals_spec[animals_spec %nin% occ_spec]
+  }else{
+    animals_occ <- lapply(animals_occ, FUN = function(x){nrow(x[[2]])})
+  }
   Failed_animals <- names(animals_occ)[which(unlist(animals_occ) == 0)]
   if(length(Failed_animals) != 0){stop("Not all animal species are found on gbif")} 
-  animals_gbif <- Gbif_Species(species = animals_spec, year_vec = 1982:1999)
-  print("Saving occurrence data")
+  animals_gbif <- Gbif_Species(species = animals_spec[animals_spec %nin% occ_spec], year_vec = 1982:1999)
+  if(sum(animals_spec %nin% occ_spec) == 1){
+    animals_gbif <- list(animals_gbif)
+    names(animals_gbif) <- animals_spec[animals_spec %nin% occ_spec]
+  }
   NonOcc_spec <- c(NonOcc_spec, names(animals_gbif[lapply(animals_gbif, nrow) == 0]))
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
   animals_gbif <- animals_gbif[lapply(animals_gbif, nrow) != 0] # remove species for which no records are present
@@ -407,9 +485,23 @@ if(sum(unique(animals_spec) %nin% occ_spec) > 0){
   NonOcc_spec <- c(NonOcc_spec, names(animals_gbif)[n_occ <= 20])
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
   animals_gbif <- animals_gbif[n_occ > 20]
+  ## outliers
+  # print("Identifying Outliers")
+  # hush_ls <- lapply(names(animals_gbif), function(df){
+  #   x <- na.omit(as.data.frame(animals_gbif[[df]])[, c("key", "decimalLatitude", "decimalLongitude")])
+  #   x$species <- df
+  #   x
+  # })
+  # animals_df <- na.omit(do.call(rbind, hush_ls))
+  # animals_df <- clean_coordinates(animals_df,
+  #                                 lat = "decimalLatitude",
+  #                                 lon = "decimalLongitude",
+  #                                 verbose = FALSE)
+  # animals_gbif <- split(animals_df, f = animals_df$species)
   ## saving data
+  print("Saving occurrence data")
   hush_ls <- pblapply(names(animals_gbif), function(df){
-    x <- na.omit(animals_gbif[[df]][, c("key", "decimalLatitude", "decimalLongitude")])
+    x <- animals_gbif[[df]][,-4] # remove species column
     x <- Gbif_Outliers(x = x, Enviro_ras = Enviro_ras, Centroids = Shapes_ct)
     saveRDS(x, file = file.path(Dir.D.Occurrences, paste0(df, ".rds")))
   }) 
@@ -421,14 +513,13 @@ print("Loading occurrence data")
 occ_fs <- list.files(Dir.D.Occurrences, full.names = TRUE, pattern = ".rds")
 occ_ls <- as.list(pbsapply(occ_fs, readRDS))
 occ_spec <- list.files(Dir.D.Occurrences, pattern = ".rds")
-names(occ_ls) <- gsub(occ_spec, pattern = ".rds", replacement = "")
+names(occ_ls) <- tools::file_path_sans_ext(occ_spec)
 
 ## Removing species for which no occurrences were found --------------------
 message("## CLEANING NETWORKS OFF SPECIES WITHOUT OCCURRENCES")
 List_ls <- pblapply(List_ls, FUN = function(x, spec){x[rownames(x) %nin% NonOcc_spec , colnames(x) %nin% NonOcc_spec]}, spec = NonOcc_spec)
 plants_spec <- unlist(lapply(List_ls, FUN = function(x){rownames(x)}))
 animals_spec <- unlist(lapply(List_ls, FUN = function(x){colnames(x)}))
-
 
 # TRAIT DATA ===============================================================
 message("### TRAIT DATA ###")
@@ -440,12 +531,18 @@ if(file.exists(file.path(Dir.Data, "Traits.RData"))){
   colnames(int.set)[5:29]
   traits_df <- int.set[int.set$animal.phylo.id %in% animals_spec & int.set$plant.phylo.id %in% plants_spec, ]
   plant_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$plant.phylo.id), FUN=mean)
-  animals_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$plant.phylo.id), FUN=mean)
-  save(traits_df, animals_means, plant_means, file = file.path(Dir.Data, "Traits.RData"))
+  plants_gowdis <- gowdis(plant_means)
+  plants_gowdis <- as.matrix(plants_gowdis)
+  dimnames(plants_gowdis) <- list(plant_means$Species, plant_means$Species)
+  animal_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$plant.phylo.id), FUN=mean)
+  animals_gowdis <- gowdis(animal_means)
+  animals_gowdis <- as.matrix(animals_gowdis)
+  dimnames(animals_gowdis) <- list(animal_means$Species, animal_means$Species)
+  save(traits_df, animal_means, animals_gowdis, plant_means, plants_gowdis, file = file.path(Dir.Data, "Traits.RData"))
 }
 
 # CLIMATE PREFERENCES ======================================================
-message("### CLIMATE PREFERENCES")
+message("### CLIMATE PREFERENCES ###")
 if(file.exists(file.path(Dir.Data, "ClimPrefs.RData"))){
   load(file.path(Dir.Data, "ClimPrefs.RData"))
   NewPrefs_pos <- which(names(occ_ls) %nin% Preferences_df$spec)
@@ -462,21 +559,27 @@ if(file.exists(file.path(Dir.Data, "ClimPrefs.RData"))){
 }
 
 # EXTINCTION PROXIES =======================================================
-message("### EXTINCTION PROXIES")
+message("### EXTINCTION PROXIES ###")
 stop("create species by site by extinction proxy df here")
 
 ## Network Centrality ------------------------------------------------------
+message("## Network Centrality")
+if(!file.exists(file.path(Dir.Data, "Prox_NetworkCentrality.RData"))){
+  Centrality_ls <- pblapply(names(List_ls), FUN = function(x){
+    graph <- graph_from_incidence_matrix(List_ls[[x]], weighted = TRUE)
+    sort(strength(graph), decreasing = TRUE)
+  })
+  names(Centrality_ls) <- names(List_ls)
+  save(Centrality_ls, file = file.path(Dir.Data, "Prox_NetworkCentrality.RData"))
+}else{
+  print("Already computed")
+  load(file.path(Dir.Data, "Prox_NetworkCentrality.RData"))
+}
+
+
 
 ## Safety Margins ----------------------------------------------------------
-
-## IUCN Criteria -----------------------------------------------------------
-
-
-
-
-
-
-
+message("## Climate Criteria")
 # 
 # 
 # ### extinction risk trials
@@ -530,17 +633,88 @@ stop("create species by site by extinction proxy df here")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
+## IUCN Criteria -----------------------------------------------------------
+message("## IUCN Criteria")
+if(!file.exists(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))){
+  IUCN_df <- data.frame(Species = names(occ_ls),
+                        Category = NA,
+                        Source = NA,
+                        N = NA)
+}else{
+  IUCN_df <- readRDS(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+}
+IUCN_spec <- names(occ_ls)[names(occ_ls) %nin% IUCN_df$Species[!is.na(IUCN_df$Category)]] # identify species for which IUCN records need to be retrieved
+if(length(IUCN_spec) > 0){
+  ### Direct IUCN retrieval ----
+  print("Direct retrieval of IUCN criteria")
+  IUCN_ls <- pblapply(IUCN_spec, FUN = function(x){
+    rl_search(x, key = IUCN_Key)$result
+  }
+  )
+  names(IUCN_ls) <- IUCN_spec
+  Ident_df <- do.call(rbind, IUCN_ls[which(unlist(lapply(IUCN_ls, class)) == "data.frame")])
+  if(!is.null(Ident_df)){
+    IUCN_df$Category[match(Ident_df$scientific_name, IUCN_df$Species)] <- Ident_df$category
+    IUCN_df$Source[match(Ident_df$scientific_name, IUCN_df$Species)] <- "IUCN"
+    saveRDS(IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+  }
+  
+  ## Calculating IUCN criteria ----
+  print("Computation of IUCN criteria where needed")
+  Calc_spec <- IUCN_df$Species[is.na(IUCN_df$Category)]
+  Calc_ls <- occ_ls[IUCN_spec %in% Calc_spec]
+  Calc_ls <- lapply(names(Calc_ls), FUN = function(x){
+    Calc_ls[[x]]$tax <- x
+    Calc_ls[[x]]
+  })
+  Calc_df <- do.call(rbind, Calc_ls)
+  Calc_df <- Calc_df[!Calc_df$Out_Enviro & !Calc_df$Out_Centroid, ]
+  Calc_df <- as.data.frame(Calc_df)
+  Calc_df <- Calc_df[,-c(1, 4, 5)]
+  colnames(Calc_df) <- c("ddlat", "ddlon", "tax")
+  ## check for which species longitude range does not exceed 180° (a limitation of the Conr package)
+  print("Figuring out for which species entire data range can be used and subsequent IUCN criteria computation")
+  Longi_check <- pbsapply(unique(Calc_df$tax), FUN = function(i){
+    diff(range(Calc_df$ddlon[Calc_df$tax == i])) >= 180}
+  )
+  
+  # save.image(file = "PreIUCNCalculation.RData") ## can be removed when all IUCN criteria have been computeds
+  
+  IUCN_calc <- IUCN.eval(DATA = Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], ], 
+                         parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
+                         protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
+  )
+  IUCN_df$Source[match(IUCN_calc$tax, IUCN_df$Species)] <- "ConR"
+  IUCN_df$Category[match(IUCN_calc$tax, IUCN_df$Species)] <- IUCN_calc$Category_CriteriaB
+  IUCN_df$N[match(IUCN_calc$tax, IUCN_df$Species)] <- table(Calc_df$tax)
+  saveRDS(IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+  ## limitation of species occurrences to the 180° longitude range for which there is the most data
+  print("Figuring out for which species parts of the data range need to be used, selecting the most data-rich range, and subsequent IUCN criteria computation")
+  Calc_df2 <- Calc_df[Calc_df$tax %in% names(Longi_check)[Longi_check], ]
+  for(i in names(Longi_check)[Longi_check]){
+    num_vec <- rep(NA, length(-180:1))
+    names(num_vec) <- -180:1
+    for(k in -180:1){
+      num_vec[which(k == names(num_vec))] <- 
+        sum(Calc_df2$ddlon[Calc_df2$tax == i] >= k & Calc_df2$ddlon[Calc_df2$tax == i] < k+180)
+    }
+    x <- as.numeric(names(which.max(num_vec)))
+    Calc_df2$ddlon[Calc_df2$tax == i][
+      Calc_df2$ddlon[Calc_df2$tax == i] < x |
+        Calc_df2$ddlon[Calc_df2$tax == i] >= x+180] <- NA
+  }
+  Calc_df2 <- na.omit(Calc_df2)
+  IUCN_calc2 <- IUCN.eval(DATA = Calc_df2, 
+                          parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
+                          protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
+  )
+  IUCN_df$Source[match(IUCN_calc2$tax, IUCN_df$Species)] <- "ConR - Reduced"
+  IUCN_df$Category[match(IUCN_calc2$tax, IUCN_df$Species)] <- IUCN_calc2$Category_CriteriaB
+  IUCN_df$N[match(IUCN_calc2$tax, IUCN_df$Species)] <- table(Calc_df$tax)
+  saveRDS(IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+}else{
+  print("All IUCN criteria already obtained")
+}
 
 
 

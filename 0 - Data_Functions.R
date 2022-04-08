@@ -94,8 +94,6 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
       X1 = NA,
       X2 = NA
     )
-    
-    
     for(i in 1:Boot){
       rows <- sample(x = 1:nrow(extract_df), size = round(nrow(extract_df)*0.7), replace = TRUE)
       values_df <- rbind(values_df, extract_df[rows, ])
