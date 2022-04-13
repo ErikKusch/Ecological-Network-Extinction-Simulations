@@ -96,9 +96,9 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
 
 # SPATIAL DATA =============================================================
 ## BUFFER CREATION ---------------------------------------------------------
-nets_df <- metanet[metanet$study.id %in% names(List_ls), ]
+nets_df <- metanet[metanet$net.id %in% names(List_ls), ]
 colnames(nets_df)[3:4] <- c("Lat", "Lon")
-nets_shp <- KrigR:::buffer_Points(nets_df, Buffer = 5, ID = "study.id")
+nets_shp <- KrigR:::buffer_Points(nets_df, Buffer = 5, ID = "net.id")
 
 ## LANDMASK ----------------------------------------------------------------
 Countries_shp <- ne_countries(scale = 10, type = "countries") # may need to run: devtools::install_github("ropensci/rnaturalearthhires")
@@ -256,21 +256,21 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
 
 ## KRIGING -----------------------------------------------------------------
 message("### PROJECTION KRIGING ###")
-if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
+if(!file.exists(file.path(Dir.Data, "Projections.RData"))){
   print("Kriging raw projection data")
   ### TEMPERATURE ----
   #### Covariates ----
   GMTED <- download_DEM(
     Train_ras = train_SSP,
     Target_res = train_ERA,
-    Shape = Land_shp,
+    Shape = nets_shp,
     Keep_Temporary = FALSE,
     Dir = Dir.D.Projections
   )
   Cov_coarse <- GMTED[[1]]
-  Cov_coarse <- mask(Cov_coarse, nets_shp)
+  # Cov_coarse <- mask(Cov_coarse, nets_shp)
   Cov_fine <- GMTED[[2]]
-  Cov_fine <- mask(Cov_fine, nets_shp)
+  # Cov_fine <- mask(Cov_fine, nets_shp)
   
   #### SSP ----
   if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_tas_2081-2100_nmax120.nc"))){
@@ -333,27 +333,30 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
       unlink(Dir.Soil, recursive = TRUE)
     }
     SoilCovs_stack <- stack(SoilCovs_ls)
-    # range_m <- KrigR::mask_Shape(SoilCovs_stack, nets_shp)
-    SoilCovs <- crop(SoilCovs_stack, extent(nets_shp))
-    SoilCovs <- mask(SoilCovs, nets_shp)
-    Cov_coarse <- resample(x = SoilCovs, y = train_SSP)
-    Cov_fine <- resample(x = SoilCovs, y = train_ERA)
-    SoilCovs_ls <- list(Coarse = Cov_coarse,
-                        Fine = Cov_fine)
+    Cov_coarse2 <- crop(SoilCovs_stack, extent(Cov_coarse))
+    Cov_coarse2 <- resample(x = Cov_coarse2, y = Cov_coarse)
+    range_m <- KrigR::mask_Shape(Cov_coarse2[[1]], nets_shp)
+    Cov_coarse2 <- mask(Cov_coarse2, range_m)
+    Cov_fine2 <- crop(SoilCovs_stack, extent(Cov_fine))
+    Cov_fine2 <- resample(x = Cov_fine2, y = Cov_fine)
+    range_m <- KrigR::mask_Shape(Cov_fine2[[1]], nets_shp)
+    Cov_fine2 <- mask(Cov_fine2, range_m)
+    SoilCovs_ls <- list(Coarse = Cov_coarse2,
+                        Fine = Cov_fine2)
     save(SoilCovs_ls, file = file.path(Dir.D.Projections, "SoilCovs_ls.RData"))
     unlink(paste0(Dir.D.Projections, "/", SoilCovs_vec, ".nc"))
   }else{
     load(file.path(Dir.D.Projections, "SoilCovs_ls.RData"))
-    Cov_coarse <- SoilCovs_ls[[1]]
-    Cov_fine <- SoilCovs_ls[[2]]
+    Cov_coarse2 <- SoilCovs_ls[[1]]
+    Cov_fine2 <- SoilCovs_ls[[2]]
   }
   
   #### SSP ----
   if(!file.exists(file.path(Dir.D.Projections, "K_ssp245_mrsos_2081-2100_nmax120.nc"))){
     QS_SSP <- krigR(
       Data = train_SSP$Moisture,
-      Covariates_coarse = Cov_coarse, 
-      Covariates_fine = Cov_fine,   
+      Covariates_coarse = Cov_coarse2, 
+      Covariates_fine = Cov_fine2,   
       KrigingEquation = "ERA ~ tkdry+tksat+csol+k_s+lambda+psi+theta_s",  
       Cores = numberOfCores, 
       Dir = Dir.D.Projections,  
@@ -369,8 +372,8 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   if(!file.exists(file.path(Dir.D.Projections, "K_CMIP-HIST_mrsos_nmax120.nc"))){
     Output_SSP <- krigR(
       Data = train_HIST$Moisture,
-      Covariates_coarse = Cov_coarse, 
-      Covariates_fine = Cov_fine,   
+      Covariates_coarse = Cov_coarse2, 
+      Covariates_fine = Cov_fine2,   
       KrigingEquation = "ERA ~ tkdry+tksat+csol+k_s+lambda+psi+theta_s",  
       Cores = numberOfCores, 
       Dir = Dir.D.Projections,  
@@ -382,20 +385,27 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   CMIP_mrsos_ras <- mean(stack(file.path(Dir.D.Projections, "K_CMIP-HIST_mrsos_nmax120.nc"))) * 0.013
   CMIP_mrsos_ras <- reclassify(CMIP_mrsos_ras, cbind(-Inf, 0, 0))
   
+  ## Resolve slightly larger TAS rasters
+  # stop("resolve extent issues")
+  # TAS_ras <- crop(TAS_ras, extent(MRSOS_ras))
+  # CMIP_tas_ras <- crop(CMIP_tas_ras, extent(MRSOS_ras))
+  
   ### DIFFERENCE AND FUSING ----
-  Projections_stack <- stack(CMIP_tas_ras,
+  Projections_stack <- list(Temp = stack(CMIP_tas_ras,
                              TAS_ras,
-                             TAS_ras - CMIP_tas_ras,
+                             TAS_ras - CMIP_tas_ras),
+                            Water = stack(
                              CMIP_mrsos_ras,
                              MRSOS_ras,
                              MRSOS_ras - CMIP_mrsos_ras)
-  writeRaster(Projections_stack, filename = file.path(Dir.Data, "Projections"), format = "CDF")
+                            )
+  save(Projections_stack, file = file.path(Dir.Data, "Projections.RData"))
 }else{
   print("Raw projection data already kriged")
 }
-Projections_stack <- stack(file.path(Dir.Data, "Projections.nc"))
-names(Projections_stack) <- c("Tair.Historical", "Tair.SSP245", "Tair.Diff",
-                              "Qsoil.Historical", "Qsoil.SSP245", "Qsoil.Diff")
+load(file.path(Dir.Data, "Projections.RData"))
+names(Projections_stack[[1]]) <- c("Tair.Historical", "Tair.SSP245", "Tair.Diff")
+names(Projections_stack[[2]]) <- c("Qsoil.Historical", "Qsoil.SSP245", "Qsoil.Diff")
 # plot(Projections_stack)
 
 # OCCURRENCE DATA ==========================================================
@@ -557,93 +567,97 @@ if(file.exists(file.path(Dir.Data, "ClimPrefs.RData"))){
   Preferences_df <- Clim_Preferences(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = TRUE, Boot = 1e3)
   save(Preferences_df, file = file.path(Dir.Data, "ClimPrefs.RData"))
 }
+Preferences_df$Temp_median <- as.numeric(Preferences_df$Temp_median)
+Preferences_df$Temp_sd <- as.numeric(Preferences_df$Temp_sd)
+Preferences_df$Water_median <- as.numeric(Preferences_df$Water_median)
+Preferences_df$Water_sd <- as.numeric(Preferences_df$Water_sd)
 
 # EXTINCTION PROXIES =======================================================
 message("### EXTINCTION PROXIES ###")
-stop("create species by site by extinction proxy df here")
 
 ## Network Centrality ------------------------------------------------------
 message("## Network Centrality")
 if(!file.exists(file.path(Dir.Data, "Prox_NetworkCentrality.RData"))){
-  Centrality_ls <- pblapply(names(List_ls), FUN = function(x){
+  Prox.Centrality_ls <- pblapply(names(List_ls), FUN = function(x){
+    # print(x)
     graph <- graph_from_incidence_matrix(List_ls[[x]], weighted = TRUE)
-    sort(strength(graph), decreasing = TRUE)
+    sort(igraph::strength(graph), decreasing = TRUE)
   })
-  names(Centrality_ls) <- names(List_ls)
-  save(Centrality_ls, file = file.path(Dir.Data, "Prox_NetworkCentrality.RData"))
+  names(Prox.Centrality_ls) <- names(List_ls)
+  save(Prox.Centrality_ls, file = file.path(Dir.Data, "Prox_NetworkCentrality.RData"))
 }else{
   print("Already computed")
   load(file.path(Dir.Data, "Prox_NetworkCentrality.RData"))
 }
 
-
-
 ## Safety Margins ----------------------------------------------------------
 message("## Climate Criteria")
-# 
-# 
-# ### extinction risk trials
-# animals_gbif <- Gbif_Species(species = animals_spec[3], year_vec = 2000:2020)
-# test_df <- animals_gbif
-# x_range <- range(test_df$decimalLongitude)
-# y_range <- range(test_df$decimalLatitude)
-# coordinates(test_df) <- ~decimalLongitude + decimalLatitude
-# test_ras <- mean(crop(AT_ras, extent(x_range, y_range)))
-# 
-# 
-# library(rworldmap)
-# 
-# newmap <- getMap(resolution = "low")
-# # plot map
-# plot(newmap, asp = 1, border = "darkgray", col = "black", bg = "gray95",
-#      xlim = x_range, ylim = y_range
-#      )
-# plot(test_ras, add = TRUE)
-# points(test_df, col = "red", cex = .5, pch = 20)
-# message("pretty bad range for some species also means pretty bad sampling from 9x9km ERA5-Land. IDEA: could locally krig from point-buffers that extract for just the sample locations.")
-# 
-# test_At <- raster::extract(x = test_ras, y = test_df)
-# test_At <- na.omit(test_At)
-# 
-# 
-# set.seed(42)
-# 
-# at_c <- c()
-# Boot <- 1e3
-# pb <- txtProgressBar(min = 0, max = Boot, style = 3)
-# for(i in 1:Boot){
-#   at_c <- c(at_c, sample(x = test_At, size = round(length(test_At)*0.7), replace = TRUE))
-#   setTxtProgressBar(pb, i)
-#   }
-# 
-# # plot(density(at_c))
-# # abline(v = median(at_c), col = "blue")
-# # abline(v = median(at_c)+2*sd(at_c), col = "red")
-# # abline(v = median(at_c)-2*sd(at_c), col = "red")
-# 
-# library(MASS)
-# fit <- fitdistr(at_c, "normal")
-# para <- fit$estimate
-# plot(density(at_c))
-# curve(dnorm(x, para[1], para[2]), col = 2, add = TRUE)
-# abline(v = para[1], col = "blue")
-# abline(v = para[1]+2*para[2], col = "blue", lty = 2)
-# abline(v = para[1]-2*para[2], col = "blue", lty = 2)
-# 
 
+if(!file.exists(file.path(Dir.Data, "Prox_Climate.RData"))){
+  Prox.Climate_ls <- pblapply(names(List_ls), function(netID){
+    # print(netID)
+    ## Species Identities
+    Plants_spec <- rownames(List_ls[[netID]])
+    Animals_spec <- colnames(List_ls[[netID]])
+    
+    ## Network position
+    extract_df <- networks_df[networks_df$net.id == netID, ]
+    coordinates(extract_df) <- ~ longitude + latitude
+    
+    ## Environmental differences at network location
+    Present <- extract(Enviro_ras$X1, extract_df, method = "bilinear")
+    if(is.na(Present)){
+      Present <- mean(unlist(extract(Enviro_ras$X1, extract_df, buffer = 1e4)), na.rm = TRUE)
+    }
+    TairDiff <- Present +
+      extract(Projections_stack[[1]]$Tair.Diff, extract_df, method = "bilinear")
+    Present <- extract(Enviro_ras$X2, extract_df, method = "bilinear")
+    if(is.na(Present)){
+      Present <- mean(unlist(extract(Enviro_ras$X2, extract_df, buffer = 1e4)), na.rm = TRUE)
+    }
+    QsoilDiff <- Present +
+      extract(Projections_stack[[2]]$Qsoil.Diff, extract_df, method = "bilinear")
+    
+    ## calculation of climate stress for each species
+    Prox_df <- data.frame(species = c(Plants_spec, Animals_spec),
+                          Tair = NA,
+                          Qsoil = NA)
+    for(speciesIter in Prox_df$species){
+      PrefIter_df <- Preferences_df[Preferences_df$spec == speciesIter, ]
+      Prox_df[Prox_df$species == speciesIter, 2:3] <- c((PrefIter_df$Temp_median - TairDiff) / PrefIter_df$Temp_sd,
+                                                        (PrefIter_df$Water_median - QsoilDiff) / PrefIter_df$Water_sd)
+    }
+    
+    ## creating order of extinction risk /climate stress
+    Order_df <- Prox_df
+    Order_df[, 2:3] <- abs(Order_df[, 2:3])
+    WhichMax <- apply(Order_df[, 2:3], MARGIN = 1, FUN = which.max)
+    Order_vec <- sapply(1:nrow(Order_df), FUN = function(x){
+      Order_df[x, WhichMax[x]+1]
+    })
+    names(Order_vec) <- Order_df$species
+    
+    ## saving climate proxies
+    list(Order = sort(Order_vec, decreasing = TRUE),
+         ClimRisk = Prox_df)
+  })
+  names(Prox.Climate_ls) <- names(List_ls)
+  save(Prox.Climate_ls, file = file.path(Dir.Data, "Prox_Climate.RData"))
+}
+load(file.path(Dir.Data, "Prox_Climate.RData"))
 
 
 ## IUCN Criteria -----------------------------------------------------------
 message("## IUCN Criteria")
 if(!file.exists(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))){
-  IUCN_df <- data.frame(Species = names(occ_ls),
+  Prox.IUCN_df <- data.frame(Species = names(occ_ls),
                         Category = NA,
                         Source = NA,
                         N = NA)
 }else{
-  IUCN_df <- readRDS(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+  Prox.IUCN_df <- readRDS(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
 }
-IUCN_spec <- names(occ_ls)[names(occ_ls) %nin% IUCN_df$Species[!is.na(IUCN_df$Category)]] # identify species for which IUCN records need to be retrieved
+IUCN_spec <- names(occ_ls)[names(occ_ls) %nin% Prox.IUCN_df$Species[!is.na(Prox.IUCN_df$Category)]] # identify species for which IUCN records need to be retrieved
 if(length(IUCN_spec) > 0){
   ### Direct IUCN retrieval ----
   print("Direct retrieval of IUCN criteria")
@@ -654,14 +668,14 @@ if(length(IUCN_spec) > 0){
   names(IUCN_ls) <- IUCN_spec
   Ident_df <- do.call(rbind, IUCN_ls[which(unlist(lapply(IUCN_ls, class)) == "data.frame")])
   if(!is.null(Ident_df)){
-    IUCN_df$Category[match(Ident_df$scientific_name, IUCN_df$Species)] <- Ident_df$category
-    IUCN_df$Source[match(Ident_df$scientific_name, IUCN_df$Species)] <- "IUCN"
-    saveRDS(IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+    Prox.IUCN_df$Category[match(Ident_df$scientific_name, Prox.IUCN_df$Species)] <- Ident_df$category
+    Prox.IUCN_df$Source[match(Ident_df$scientific_name, Prox.IUCN_df$Species)] <- "IUCN"
+    saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
   }
   
   ## Calculating IUCN criteria ----
   print("Computation of IUCN criteria where needed")
-  Calc_spec <- IUCN_df$Species[is.na(IUCN_df$Category)]
+  Calc_spec <- Prox.IUCN_df$Species[is.na(Prox.IUCN_df$Category)]
   Calc_ls <- occ_ls[IUCN_spec %in% Calc_spec]
   Calc_ls <- lapply(names(Calc_ls), FUN = function(x){
     Calc_ls[[x]]$tax <- x
@@ -684,10 +698,10 @@ if(length(IUCN_spec) > 0){
                          parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
                          protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
   )
-  IUCN_df$Source[match(IUCN_calc$tax, IUCN_df$Species)] <- "ConR"
-  IUCN_df$Category[match(IUCN_calc$tax, IUCN_df$Species)] <- IUCN_calc$Category_CriteriaB
-  IUCN_df$N[match(IUCN_calc$tax, IUCN_df$Species)] <- table(Calc_df$tax)
-  saveRDS(IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+  Prox.IUCN_df$Source[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- "ConR"
+  Prox.IUCN_df$Category[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- IUCN_calc$Category_CriteriaB
+  Prox.IUCN_df$N[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- table(Calc_df$tax)
+  saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
   ## limitation of species occurrences to the 180° longitude range for which there is the most data
   print("Figuring out for which species parts of the data range need to be used, selecting the most data-rich range, and subsequent IUCN criteria computation")
   Calc_df2 <- Calc_df[Calc_df$tax %in% names(Longi_check)[Longi_check], ]
@@ -708,18 +722,14 @@ if(length(IUCN_spec) > 0){
                           parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
                           protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
   )
-  IUCN_df$Source[match(IUCN_calc2$tax, IUCN_df$Species)] <- "ConR - Reduced"
-  IUCN_df$Category[match(IUCN_calc2$tax, IUCN_df$Species)] <- IUCN_calc2$Category_CriteriaB
-  IUCN_df$N[match(IUCN_calc2$tax, IUCN_df$Species)] <- table(Calc_df$tax)
-  saveRDS(IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+  Prox.IUCN_df$Source[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- "ConR - Reduced"
+  Prox.IUCN_df$Category[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- IUCN_calc2$Category_CriteriaB
+  Prox.IUCN_df$N[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- table(Calc_df$tax)
+  saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
 }else{
   print("All IUCN criteria already obtained")
 }
 
-
-
-
-
-
-
-
+# SAVING ALL DATA AS ONE OBJECT ============================================
+save(Prox.Climate_ls, Prox.IUCN_df, Prox.Centrality_ls, networks_df, List_ls, traits_df, 
+     file = file.path(Dir.Data, "AnalysesData.RData"))
