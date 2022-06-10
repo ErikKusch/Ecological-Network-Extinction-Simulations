@@ -90,14 +90,12 @@ names(AnalysisData_ls) <- names(List_ls)
 # EXTINCTION SIMULATION(S) =================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
-animals_sp <- rownames(animals_gowdis)
-plants_sp <- rownames(plants_gowdis)
-
-PlantAnim <- NULL # should be set either to a vector of plant species names or animal species names
-RunName <- "ALL" # for file naming
-
 # install.packages("NetworkExtinction")
 library(NetworkExtinction)
+
+FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of plant species names or animal species names
+                        RunName = "ALL" # for file naming
+){
 
 Sim_ls <- pblapply(names(AnalysisData_ls), function(x){
   print(x)
@@ -164,107 +162,112 @@ Sim_ls <- pblapply(names(AnalysisData_ls), function(x){
 })
 names(Sim_ls) <- names(AnalysisData_ls)
 save(Sim_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationNets.RData")))
-
-# NETWORK TOPOLOGY =========================================================
-message("### NETWORK TOPOLOGIES ###")
-
-FUN_Topo <- function(plot_df){
-  Nes <- try(networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
-  Mod <- try(NOS(web = plot_df)$mod, silent = TRUE)
-  round(
-    data.frame(
-      n_species = ncol(plot_df),
-      n_animals = sum(colnames(plot_df) %in% rownames(animals_gowdis)),
-      n_plants = sum(colnames(plot_df) %in% rownames(plants_gowdis)),
-      n_links = sum(plot_df>0),
-      Nestedness = as.numeric(ifelse(class(Nes) == "try-error", NA, Nes)),
-      Modularity = as.numeric(ifelse(class(Mod) == "try-error", NA, Mod))
-    ), 2)
 }
 
-## Pre-Extinction ----------------------------------------------------------
-print("Pre-Extinction")
-PreExt_df <- pblapply(lapply(AnalysisData_ls, "[[", "Adjacency"), FUN = FUN_Topo)
-PreExt_df <- do.call(rbind, PreExt_df)
-rownames(PreExt_df) <- names(AnalysisData_ls)
+FUN_SimComp(PlantAnim = NULL, RunName = "ALL")
+FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants")
+FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals")
 
-## Post-Extinction ---------------------------------------------------------
-print("Post-Extinction")
-PostExt_ls <- pblapply(names(Sim_ls), FUN = function(netID){
-  Storage_ls <- list(Random = NA,
-                     Strength = NA,
-                     Climate = NA,
-                     IUCN = NA
-  )
-  for(i in 1:4){
-    if(i == 1){
-      plot_ls <- as.matrix(Sim_ls[[netID]][[i]])
-      Rand_ls <- lapply(plot_ls, FUN_Topo)
-      Storage_ls[[i]] <- do.call(rbind, Rand_ls)
-    }else{
-      Storage_ls[[i]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]]))
-    }
-  }
-  Storage_ls
-})
-names(PostExt_ls) <- names(AnalysisData_ls)
-
-PostRand_df <- do.call(rbind, lapply(PostExt_ls, "[[", "Random"))
-PostStr_df <- do.call(rbind, lapply(PostExt_ls, "[[", "Strength"))
-PostClim_df <- do.call(rbind, lapply(PostExt_ls, "[[", "Climate"))
-PostIUCN_df <- do.call(rbind, lapply(PostExt_ls, "[[", "IUCN"))
-
-
-# VISUALISATION ============================================================
-Plot_df <- rbind(PreExt_df, PostStr_df, PostClim_df, PostIUCN_df, PostRand_df)
-Plot_df$Study <- c(rep(rownames(PostIUCN_df), 4), 
-                   rep(rownames(PostIUCN_df), each = nrow(PostRand_df)/length(AnalysisData_ls)))
-Plot_df$Sim <- c(rep(c("Pre", "Centrality", "Climate", "IUCN"), each = nrow(PostIUCN_df)), 
-                 rep("Random", nrow(PostRand_df)))
-
-Plot_df <- Plot_df[Plot_df$Sim != "Random", ]
-
-comps <- list(
-  # c("Random", "Pre"),
-  #             c("Random", "Centrality"),
-  #             c("Random", "Climate"),
-  #             c("Random", "IUCN"),
-              c("Pre", "Centrality"),
-              c("Pre", "Climate"),
-              c("Pre", "IUCN"),
-              c("Centrality", "Climate"),
-              c("Centrality", "IUCN"),
-              c("Climate", "IUCN")
-              )
-
-N_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_species)) + 
-  geom_boxplot() + 
-  stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
-  theme_bw() + labs(x = "Simulation / Proxy", y = "# of species")
-
-NA_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_animals)) + 
-  geom_boxplot() + 
-  stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
-  theme_bw() + labs(x = "Simulation / Proxy", y = "# of animal species")
-
-NP_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_plants)) + 
-  geom_boxplot() + 
-  stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
-  theme_bw() + labs(x = "Simulation / Proxy", y = "# of plant species")
-
-Links_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_links)) + 
-  geom_boxplot() + 
-  stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
-  theme_bw() + labs(x = "Simulation / Proxy", y = "# of links")
-
-Nest_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = Nestedness)) + 
-  geom_boxplot() + 
-  stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
-  theme_bw() + labs(x = "Simulation / Proxy", y = "Nestedness")
-
-Mod_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = Modularity)) + 
-  geom_boxplot() + 
-  stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
-  theme_bw() + labs(x = "Simulation / Proxy", y = "Modularity")
-
-plot_grid(N_gplot, Links_gplot, NA_gplot, NP_gplot, Nest_gplot, Mod_gplot, ncol = 2)
+# # NETWORK TOPOLOGY =========================================================
+# message("### NETWORK TOPOLOGIES ###")
+# 
+# FUN_Topo <- function(plot_df){
+#   Nes <- try(networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
+#   Mod <- try(NOS(web = plot_df)$mod, silent = TRUE)
+#   round(
+#     data.frame(
+#       n_species = ncol(plot_df),
+#       n_animals = sum(colnames(plot_df) %in% rownames(animals_gowdis)),
+#       n_plants = sum(colnames(plot_df) %in% rownames(plants_gowdis)),
+#       n_links = sum(plot_df>0),
+#       Nestedness = as.numeric(ifelse(class(Nes) == "try-error", NA, Nes)),
+#       Modularity = as.numeric(ifelse(class(Mod) == "try-error", NA, Mod))
+#     ), 2)
+# }
+# 
+# ## Pre-Extinction ----------------------------------------------------------
+# print("Pre-Extinction")
+# PreExt_df <- pblapply(lapply(AnalysisData_ls, "[[", "Adjacency"), FUN = FUN_Topo)
+# PreExt_df <- do.call(rbind, PreExt_df)
+# rownames(PreExt_df) <- names(AnalysisData_ls)
+# 
+# ## Post-Extinction ---------------------------------------------------------
+# print("Post-Extinction")
+# PostExt_ls <- pblapply(names(Sim_ls), FUN = function(netID){
+#   Storage_ls <- list(Random = NA,
+#                      Strength = NA,
+#                      Climate = NA,
+#                      IUCN = NA
+#   )
+#   for(i in 1:4){
+#     if(i == 1){
+#       plot_ls <- as.matrix(Sim_ls[[netID]][[i]])
+#       Rand_ls <- lapply(plot_ls, FUN_Topo)
+#       Storage_ls[[i]] <- do.call(rbind, Rand_ls)
+#     }else{
+#       Storage_ls[[i]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]]))
+#     }
+#   }
+#   Storage_ls
+# })
+# names(PostExt_ls) <- names(AnalysisData_ls)
+# 
+# PostRand_df <- do.call(rbind, lapply(PostExt_ls, "[[", "Random"))
+# PostStr_df <- do.call(rbind, lapply(PostExt_ls, "[[", "Strength"))
+# PostClim_df <- do.call(rbind, lapply(PostExt_ls, "[[", "Climate"))
+# PostIUCN_df <- do.call(rbind, lapply(PostExt_ls, "[[", "IUCN"))
+# 
+# 
+# # VISUALISATION ============================================================
+# Plot_df <- rbind(PreExt_df, PostStr_df, PostClim_df, PostIUCN_df, PostRand_df)
+# Plot_df$Study <- c(rep(rownames(PostIUCN_df), 4), 
+#                    rep(rownames(PostIUCN_df), each = nrow(PostRand_df)/length(AnalysisData_ls)))
+# Plot_df$Sim <- c(rep(c("Pre", "Centrality", "Climate", "IUCN"), each = nrow(PostIUCN_df)), 
+#                  rep("Random", nrow(PostRand_df)))
+# 
+# Plot_df <- Plot_df[Plot_df$Sim != "Random", ]
+# 
+# comps <- list(
+#   # c("Random", "Pre"),
+#   #             c("Random", "Centrality"),
+#   #             c("Random", "Climate"),
+#   #             c("Random", "IUCN"),
+#               c("Pre", "Centrality"),
+#               c("Pre", "Climate"),
+#               c("Pre", "IUCN"),
+#               c("Centrality", "Climate"),
+#               c("Centrality", "IUCN"),
+#               c("Climate", "IUCN")
+#               )
+# 
+# N_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_species)) + 
+#   geom_boxplot() + 
+#   stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
+#   theme_bw() + labs(x = "Simulation / Proxy", y = "# of species")
+# 
+# NA_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_animals)) + 
+#   geom_boxplot() + 
+#   stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
+#   theme_bw() + labs(x = "Simulation / Proxy", y = "# of animal species")
+# 
+# NP_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_plants)) + 
+#   geom_boxplot() + 
+#   stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
+#   theme_bw() + labs(x = "Simulation / Proxy", y = "# of plant species")
+# 
+# Links_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = n_links)) + 
+#   geom_boxplot() + 
+#   stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
+#   theme_bw() + labs(x = "Simulation / Proxy", y = "# of links")
+# 
+# Nest_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = Nestedness)) + 
+#   geom_boxplot() + 
+#   stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
+#   theme_bw() + labs(x = "Simulation / Proxy", y = "Nestedness")
+# 
+# Mod_gplot <- ggplot(Plot_df, aes(x = factor(Sim, levels = c("Pre", "Centrality", "Climate", "IUCN", "Random")), y = Modularity)) + 
+#   geom_boxplot() + 
+#   stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') + 
+#   theme_bw() + labs(x = "Simulation / Proxy", y = "Modularity")
+# 
+# plot_grid(N_gplot, Links_gplot, NA_gplot, NP_gplot, Nest_gplot, Mod_gplot, ncol = 2)
