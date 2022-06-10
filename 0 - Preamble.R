@@ -54,7 +54,8 @@ package_vec <- c(
   "leafpop", # for graph popups in leaflet output
   "cowplot", # for arranging of plots
   "gridExtra", # for table grobs as legends in plots
-  "dplyr" # for data cleaning
+  "dplyr", # for data cleaning
+  "ggpubr" # for t-test comparisons in ggplots
 )
 sapply(package_vec, install.load.package)
 
@@ -85,10 +86,14 @@ hush <- function(code){
   return(tmp)
 }
 
-Sort.DF <- function(Data = NULL, Column = NULL){
-  Data[order(Data[ , Column] ), ]
+Sort.DF <- function(Data = NULL, Column = NULL, decreasing = FALSE){
+  Data[order(Data[ , Column], decreasing = decreasing), ]
 }
 
 if(!exists("IUCN_Key")){
   IUCN_Key <- readline(prompt = "Please enter your IUCN API key.")
+}
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
 }

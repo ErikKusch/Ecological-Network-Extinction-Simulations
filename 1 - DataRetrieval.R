@@ -95,6 +95,7 @@ if(!file.exists(file.path(Dir.Data, "Networks.RData"))){
 # Map
 
 # SPATIAL DATA =============================================================
+message("### SPATIAL DATA ###")
 ## BUFFER CREATION ---------------------------------------------------------
 nets_df <- metanet[metanet$net.id %in% names(List_ls), ]
 colnames(nets_df)[3:4] <- c("Lat", "Lon")
@@ -544,7 +545,7 @@ if(file.exists(file.path(Dir.Data, "Traits.RData"))){
   plants_gowdis <- gowdis(plant_means)
   plants_gowdis <- as.matrix(plants_gowdis)
   dimnames(plants_gowdis) <- list(plant_means$Species, plant_means$Species)
-  animal_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$plant.phylo.id), FUN=mean)
+  animal_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$animal.phylo.id), FUN=mean)
   animals_gowdis <- gowdis(animal_means)
   animals_gowdis <- as.matrix(animals_gowdis)
   dimnames(animals_gowdis) <- list(animal_means$Species, animal_means$Species)
@@ -731,5 +732,5 @@ if(length(IUCN_spec) > 0){
 }
 
 # SAVING ALL DATA AS ONE OBJECT ============================================
-save(Prox.Climate_ls, Prox.IUCN_df, Prox.Centrality_ls, networks_df, List_ls, traits_df, 
+save(Prox.Climate_ls, Prox.IUCN_df, Prox.Centrality_ls, networks_df, List_ls, traits_df, animals_gowdis, plants_gowdis,
      file = file.path(Dir.Data, "AnalysesData.RData"))
