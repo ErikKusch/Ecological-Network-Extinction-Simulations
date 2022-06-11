@@ -97,3 +97,15 @@ if(!exists("IUCN_Key")){
 substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
 }
+
+# loads .RData objects to a specified named object
+loadRData <- function(fileName){
+  #loads an RData file, and returns it
+  get(load(fileName))
+}
+
+# return name of an object
+objName <- function(z){
+  deparse(substitute(z))
+  }
+

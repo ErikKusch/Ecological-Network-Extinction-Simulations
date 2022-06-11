@@ -111,3 +111,18 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
   preferences_df <- na.omit(preferences_df)
   return(preferences_df)
 }
+
+# Network Topology =========================================================
+FUN_Topo <- function(plot_df){
+  Nes <- try(networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
+  Mod <- try(NOS(web = plot_df)$mod, silent = TRUE)
+  round(
+    data.frame(
+      n_species = ncol(plot_df),
+      n_animals = sum(colnames(plot_df) %in% rownames(animals_gowdis)),
+      n_plants = sum(colnames(plot_df) %in% rownames(plants_gowdis)),
+      n_links = sum(plot_df>0),
+      Nestedness = as.numeric(ifelse(class(Nes) == "try-error", NA, Nes)),
+      Modularity = as.numeric(ifelse(class(Mod) == "try-error", NA, Mod))
+    ), 4)
+}
