@@ -35,6 +35,13 @@ load(file.path(Dir.Data, "AnalysesData.RData")) # load the data needed for the a
 #' - plants_gowdis: square matrix of plant species dissimilarity in trait space
 #' 
 
+## Setting up parallel cluster
+cl <- parallel::makeCluster(parallel::detectCores()) # for parallel pbapply functions
+parallel::clusterExport(cl,
+                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis"),
+                        envir = environment()
+)
+
 ## Data Manipulation -------------------------------------------------------
 print("Reformatting Data")
 ### IUCN Categories as numbers
@@ -107,39 +114,42 @@ animals_sp <- rownames(animals_gowdis)
 library(NetworkExtinction)
 
 FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of plant species names or animal species names
-                        RunName = "ALL" # for file naming
+                        RunName = "ALL", # for file naming
+                        IS = 0.3
 ){
   
-  # cl <- parallel::makeCluster(parallel::detectCores()) # for parallel pbapply functions
-  # parallel::clusterExport(cl,
-  #                         varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", "AnalysisData_ls"), 
-  #                         envir = environment()
-  # )
+  print(paste0(RunName, "; IS = ", IS))
+  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", IS, ".RData")))){
+    print("Already computed")
+    break
+  }
   
   Sim_ls <- pblapply(names(AnalysisData_ls), 
                      # cl = cl, 
                      function(x){
-    # print(x)
-    
+    print(x)
+    # x <- names(AnalysisData_ls)[1]
     x <- AnalysisData_ls[[x]]
-    net <- as.network(x$Adjacency)
+    net <- as.network(x$Adjacency, matrix.type = "adjacency", 
+                      ignore.eval=FALSE, names.eval='weight')
     
     ## Subsetting proxies for bottom-up/top-down simulations
     if(!is.null(PlantAnim)){
       x$prox_centrality <- x$prox_centrality[names(x$prox_centrality) %in% PlantAnim]
       x$prox_climate <- x$prox_climate[names(x$prox_climate) %in% PlantAnim]
-      x$prox_IUCN <- x$prox_IUCN[x$prox_IUCN %in% PlantAnim]
+      x$prox_IUCN <- x$prox_IUCN[names(x$prox_IUCN) %in% PlantAnim]
     }
     
     ## Centrality-Driven -------------------------------------------------------
     # print("Extinction of Keystone Species (Centrality)")
-    proxcen <- x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, 0.75)] # just eleiminate upper 25% quantile
+    proxcen <- x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, 0.75)] # just eliminate upper 25% quantile
     primext_names <- names(proxcen)
     primext_order <- match(primext_names, rownames(x$Adjacency))
-    CustOrder_ExtS <- ExtinctionOrderEK(Network = net, Order = primext_order)
+    CustOrder_ExtS <- ExtinctionOrderEK(Network = net, Order = primext_order, IS = IS)
     ExtS_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
                                      parallel = TRUE, ncores = parallel::detectCores(), 
-                                     SimExt = length(proxcen))
+                                     SimExt = length(proxcen),
+                                     IS = IS)
     closeAllConnections()
     # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]])
     
@@ -149,10 +159,12 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
     if(length(primext_names) != 0){
       primext_order <- match(primext_names, rownames(x$Adjacency))
-      CustOrder_ExtC <- ExtinctionOrderEK(Network = net, Order = primext_order)
+      CustOrder_ExtC <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                                          IS = IS)
       ExtC_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
                                        parallel = TRUE, ncores = parallel::detectCores(), 
-                                       SimExt = length(primext_names))
+                                       SimExt = length(primext_names),
+                                       IS = IS)
       # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
       closeAllConnections()
     }
@@ -163,10 +175,12 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
     if(length(primext_names) != 0){
       primext_order <- match(primext_names, rownames(x$Adjacency))
-      CustOrder_ExtI <- ExtI_Rand <- ExtinctionOrderEK(Network = net, Order = primext_order)
+      CustOrder_ExtI <- ExtI_Rand <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                                                       IS = IS)
       ExtI_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
                                        parallel = TRUE, ncores = parallel::detectCores(), 
-                                       SimExt = length(primext_names))
+                                       SimExt = length(primext_names),
+                                       IS = IS)
       # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
       closeAllConnections()
     }
@@ -185,19 +199,26 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     )
   })
   names(Sim_ls) <- names(AnalysisData_ls)
-  save(Sim_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationNets.RData")))
-  return(Sim_ls)
+  save(Sim_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationNets_", IS, ".RData")))
 }
 
-SimComp_ALL <- if(file.exists(file.path(Dir.Exports, "ALLSimulationNets.RData"))){
-                  loadRData(file.path(Dir.Exports, "ALLSimulationNets.RData"))
-                }else{
-                  FUN_SimComp(PlantAnim = NULL, RunName = "ALL")
-                }
+for(IS_iter in seq(0, 1, 0.05)){
+  FUN_SimComp(PlantAnim = NULL, RunName = "ALL", IS = IS_iter)
+}
+
+
+
+
+
+
+
+
+
+
 SimComp_Plants <- if(file.exists(file.path(Dir.Exports, "PlantsSimulationNets.RData"))){
   loadRData(file.path(Dir.Exports, "PlantsSimulationNets.RData"))
 }else{
-  FUN_SimComp(PlantAnim = plants_sp, RunName = "ALL")
+  FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants")
 }
 SimComp_Animals <- if(file.exists(file.path(Dir.Exports, "AnimalsSimulationNets.RData"))){
   loadRData(file.path(Dir.Exports, "AnimalsSimulationNets.RData"))
@@ -210,8 +231,8 @@ message("### NETWORK TOPOLOGIES ###")
 
 ## Pre-Extinction ----------------------------------------------------------
 print("Pre-Extinction")
-## Setting up parlallel cluster
 PreExt_df <- pblapply(lapply(AnalysisData_ls, "[[", "Adjacency"), 
+                      cl = cl,
                       FUN = FUN_Topo)
 PreExt_df <- do.call(rbind, PreExt_df)
 PreExt_df$netID <- names(AnalysisData_ls)
@@ -222,16 +243,11 @@ PreExt_df$Simulation <- "Pre-Extinction"
 print("Post-Extinction")
 
 FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL"){
-  # 
-  # cl <- parallel::makeCluster(parallel::detectCores()) # for parallel pbapply functions
-  # parallel::clusterExport(cl,
-  #                         varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis"), 
-  #                         envir = environment()
-  # )
-  # 
+  print(RunName)
+
   ## Topology Calculation
   PostExt_ls <- pblapply(names(Sim_ls), 
-                         # cl = cl,
+                         cl = cl,
                          FUN = function(netID){
     Storage_ls <- list(Strength = list(Prediction = NA, Random = NA),
                        Climate = list(Prediction = NA, Random = NA),
@@ -298,7 +314,9 @@ TopoComp_Animals <- if(file.exists(file.path(Dir.Exports, "AnimalsSimulationTopo
 # VISUALISATION ============================================================
 message("### RESULT VISUALISATION ###")
 
-FUN_PlotMod <- function(Pre_df, Post_df){
+
+## By Cascade Orientation --------------------------------------------------
+FUN_PlotMod <- function(Pre_df, Post_df, RunName){
   Plot_df <- rbind(Pre_df, Post_df)
   Plot_df<- reshape(data = Plot_df,
                     idvar = "netID",
@@ -319,13 +337,14 @@ FUN_PlotMod <- function(Pre_df, Post_df){
               "Number of Realised Links in Network following Extinction",
               "Nestedness of Network following Extinction", 
               "Modularity of Network following Extinction")
+  Colours <- c("black", "green", "red", "purple", "blue", "orange")
   for(i in 1:length(unique(Plot_df$Topology))){
     ## Comparison of random vs. predicted
     comps <- list(c("Random", "Prediction"))
     RandPred_gg <- ggplot(Plot_df[Plot_df$Simulation != "Pre-Extinction" & 
                                     Plot_df$Topology == unique(Plot_df$Topology)[i], ], 
                           aes(x = factor(Simulation, levels = c("Random", "Prediction")), y = Value)) +
-      geom_boxplot() +
+      geom_boxplot(col = Colours[i]) +
       facet_wrap(~factor(Proxy, levels = c("Strength", "Climate", "IUCN"))) + 
       stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
       theme_bw() + labs(x = "Simulation", y = "Network Topology Metric")
@@ -338,12 +357,12 @@ FUN_PlotMod <- function(Pre_df, Post_df){
                                     Plot_df$Simulation != "Random" & 
                                     Plot_df$Topology == unique(Plot_df$Topology)[i], ], 
                           aes(x = factor(Proxy, levels = c("Strength", "Climate", "IUCN")), y = Value)) +
-      geom_boxplot() +
+      geom_boxplot(col = Colours[i]) +
       stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
       theme_bw() + labs(x = "Proxy", y = "Network Topology Metric")
     ## Fusing of Plots
-    title <- ggdraw() + draw_label(Titles[i], fontface='bold')
-    ProxyComp_ls[[i]] <- cowplot::plot_grid(title, RandPred_gg, PredComp_gg, ncol = 1, rel_heights = c(0.05, 0.4, 0.5)) 
+    title <- ggdraw() + draw_label(paste0(Titles[i], " (", RunName, ")"), fontface='bold')
+    ProxyComp_ls[[i]] <- cowplot::plot_grid(title, RandPred_gg, PredComp_gg, ncol = 1, rel_heights = c(0.05, 0.5, 0.5)) 
   }
   ProxyComp_ls
   
@@ -372,9 +391,93 @@ FUN_PlotMod <- function(Pre_df, Post_df){
   
 }
 
-Plots_ALL <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_ALL$Topo_df)
-Plots_Plants <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Plants$Topo_df)
-Plots_Animals <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Animals$Topo_df)
+Plots_ALL <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_ALL$Topo_df, RunName = "ALL")
+Plots_Plants <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Plants$Topo_df, RunName = "Plants")
+Plots_Animals <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Animals$Topo_df, RunName = "Animals")
+
+
+## By Extinction Proxy -----------------------------------------------------
+
+
+
+
+
+PreExt_df$Cascade <- "Pre-Extinction"
+TopoComp_ALL$Topo_df$Cascade <- "ALL"
+TopoComp_Plants$Topo_df$Cascade <- "Bottom-Up"
+TopoComp_Animals$Topo_df$Cascade <- "Top-Down"
+
+
+
+
+Plot_df <- rbind(PreExt_df,
+                 TopoComp_ALL$Topo_df,
+                 TopoComp_Plants$Topo_df, 
+                 TopoComp_Animals$Topo_df
+                 )
+Plot_df <- reshape(data = Plot_df,
+                   idvar = "netID",
+                   varying = colnames(Plot_df)[1:6],
+                   v.name = "Value",
+                   timevar = "Topology",
+                   times = colnames(Plot_df)[1:6],
+                   new.row.names = 1:(nrow(Plot_df)*6),
+                   direction = "long"
+)
+
+comps <- list(c("Pre-Extinction", "ALL"),
+              c("Pre-Extinction", "Bottom-Up"),
+              c("Pre-Extinction", "Top-Down")
+)
+
+Plots_ExtProxy <- as.list(rep(NA, length(unique(Plot_df$Proxy))-1))
+names(Plots_ExtProxy) <- unique(Plot_df$Proxy)[-1]
+
+for(i in 1:length(Plots_ExtProxy)){
+  k <- unique(Plot_df$Proxy)[-1][i]
+  Plots_ExtProxy[[k]] <- ggplot(Plot_df[Plot_df$Simulation != "Random" & (Plot_df$Proxy == k | Plot_df$Proxy == "Pre-Extinction"), ], 
+         aes(x = factor(Cascade, levels = c("Pre-Extinction", "ALL", "Bottom-Up", "Top-Down")), 
+             y = Value)) + 
+    geom_violin(col = "brown") + 
+    facet_wrap(~factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+                                            "n_links", "Nestedness", "Modularity")), 
+               scales = "free") + 
+    stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
+    theme_bw() + labs(x = "Extinction Cascade", title = k)
+}
+Plots_ExtProxy
+
+
+
+
+
+pdf("Print.pdf", paper="USr", width = 12, height = 9)
+Plots_ALL
+Plots_Animals
+Plots_Plants
+Plots_ExtProxy
+dev.off()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

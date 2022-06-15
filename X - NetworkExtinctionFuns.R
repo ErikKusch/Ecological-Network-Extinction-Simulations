@@ -8,12 +8,16 @@
   return(x)
 }
 
-.ExtinctionOrderEK <- function(Network, Order, clust.method = "cluster_infomap"){
+.ExtinctionOrderEK <- function(Network, Order, clust.method = "cluster_infomap", IS = 0.7){
   Link_density <- Modularity <- Grado <- NULL
   edgelist <- as.matrix.network.edgelist(Network,matrix.type="edgelist") #Prey - Predator
   Conected <- data.frame(ID = 1:network.size(Network), Grado = degree(edgelist, c("total")))
   
   Conected1<-  Order
+  
+  net <- as.matrix.network.adjacency(Network, attrname = "weight")
+  netgraph <- suppressMessages(graph_from_adjacency_matrix(net, weighted = TRUE)) #
+  strengthbasenet <- igraph::strength(netgraph)
   
   indegreebasenet <- degree(Network, cmode = "indegree")
   
@@ -62,12 +66,12 @@
     Networkclass = class(Temp)
     
     if (Networkclass[1] == "matrix"){
-      netgraph = graph_from_adjacency_matrix(Temp, mode = "directed", weighted = NULL)
+      netgraph = graph_from_adjacency_matrix(Temp, weighted = TRUE) # !!! somehow bring weighted = NULL back for non-weighted networks
     }
     
     if (Networkclass[1] == "network"){
-      net = as.matrix.network.adjacency(Temp)
-      netgraph = suppressMessages(graph_from_adjacency_matrix(net, mode = "directed", weighted = NULL))
+      net = as.matrix.network.adjacency(Temp, attrname = "weight")
+      netgraph = suppressMessages(graph_from_adjacency_matrix(net, weighted = TRUE)) # !!! somehow bring weighted = NULL back for non-weighted networks
     }
     
     if (clust.method == "cluster_edge_betweenness"){
@@ -81,8 +85,11 @@
                                                        fixed = NULL))
     }else if (clust.method == "cluster_infomap"){
       nb.trials = 107#network.size(Temp)
-      Membership = suppressWarnings(cluster_infomap(netgraph, e.weights = NULL, v.weights = NULL,
-                                                    nb.trials = nb.trials, modularity = TRUE))
+      Membership = suppressWarnings(cluster_infomap(as.undirected(netgraph), 
+                                                    e.weights = E(netgraph)$weight, 
+                                                    v.weights = NULL,
+                                                    nb.trials = nb.trials, 
+                                                    modularity = TRUE))
       
     } else if (clust.method == "none"){
       Membership = NA
@@ -93,25 +100,41 @@
       DF$Modularity[i] <- suppressWarnings(modularity(Membership))
     }
     
+    ## Producer Extinction Secondary
     SecundaryextTemp <- (1:length(degree(Temp, cmode = "indegree")))[degree(Temp, cmode = "indegree") == 0]
-    for(j in sort(unique(c(c(DF$Spp[1:i]),accExt)))){
-      SecundaryextTemp <- ifelse(SecundaryextTemp < j, SecundaryextTemp, SecundaryextTemp + 1)
+    for(j in sort(unique(c(c(DF$Spp[1:i]),accExt)))){ # !!! what does this step do?!?!?!
+      SecundaryextTemp <- ifelse(SecundaryextTemp < j, 
+                                 SecundaryextTemp, 
+                                 SecundaryextTemp + 1)
     }
     Secundaryext <- SecundaryextTemp
     Secundaryext <- Secundaryext[!(Secundaryext %in% Producers)]
-    DF$SecExt[i]<- length(Secundaryext)
     
+    
+    ## Predator Extinction Secondary
     PredationrelTemp <- (1:length(degree(Temp, cmode = "outdegree")))[degree(Temp, cmode = "outdegree") == 0]
     for(j in sort(unique(c(c(DF$Spp[1:i]),accExt)))){
       PredationrelTemp <- ifelse(PredationrelTemp < j, PredationrelTemp, PredationrelTemp + 1)
     }
     Predationrel <- PredationrelTemp
     Predationrel <- Predationrel[!(Predationrel %in% TopPredators)]
-    DF$Pred_release[i]<- length(Predationrel)
+    DF$Pred_release[i] <- length(Predationrel)
+    
+    
+    RelISloss <- igraph::strength(suppressMessages(graph_from_adjacency_matrix(
+      as.matrix.network.adjacency(Temp, attrname = "weight"), 
+      weighted = TRUE)
+      )) / strengthbasenet[names(strengthbasenet) %in% get.vertex.attribute(Temp, "vertex.names")]
+    RelISloss < IS
+    
     DF$Iso_nodes[i] <- sum(degree(Temp) == 0)
     
+    Secundaryext <- which(RelISloss < IS)
+    DF$SecExt[i]<- length(Secundaryext)
+    
+    
     # message(i)
-    FinalExt[[i]] <-(Secundaryext)
+    FinalExt[[i]] <- (Secundaryext)
     accExt <- append(accExt, DF$Spp[1:i])
     accExt <- unique(append(accExt,Secundaryext))
     
@@ -126,7 +149,7 @@
   return(list(DF, Temp))
 }
 
-ExtinctionOrderEK <- function(Network, Order){
+ExtinctionOrderEK <- function(Network, Order, clust.method = "cluster_infomap", IS = 0.3){
   Grado <- NULL
   Network <- .DataInit(x = Network)
   edgelist <- as.matrix.network.edgelist(Network,matrix.type="edgelist") #Prey - Predator
@@ -135,6 +158,18 @@ ExtinctionOrderEK <- function(Network, Order){
   Conected1<-  Order
   
   indegreebasenet <- degree(Network, cmode = "indegree")
+  
+  
+  
+  
+  
+  net <- as.matrix.network.adjacency(Network, attrname = "weight")
+  netgraph <- suppressMessages(graph_from_adjacency_matrix(net, weighted = TRUE)) #
+  strengthbasenet <- igraph::strength(netgraph)
+  
+  
+  
+  
   
   indegreebasenetzeros <- sum(degree(Network, cmode = "indegree") == 0)
   indegreetopnetzeros <- sum(degree(Network, cmode = "outdegree") == 0)
@@ -191,7 +226,23 @@ ExtinctionOrderEK <- function(Network, Order){
     }
     Predationrel <- PredationrelTemp
     Predationrel <- Predationrel[!(Predationrel %in% TopPredators)]
-    DF$Pred_release[i]<- length(Predationrel)
+    DF$Pred_release[i] <- length(Predationrel)
+    
+    
+    
+    
+    
+    RelISloss <- igraph::strength(suppressMessages(graph_from_adjacency_matrix(
+      as.matrix.network.adjacency(Temp, attrname = "weight"), 
+      weighted = TRUE)
+    )) / strengthbasenet[names(strengthbasenet) %in% get.vertex.attribute(Temp, "vertex.names")]
+    Secundaryext <- which(RelISloss < IS)
+    DF$SecExt[i]<- length(Secundaryext)
+    
+    
+    
+    
+    
     
     # message(i)
     FinalExt[[i]] <-(Secundaryext)
@@ -208,7 +259,7 @@ ExtinctionOrderEK <- function(Network, Order){
   return(list(DF, Temp))
 }
 
-RandomExtinctionsEK <- function(Network, nsim = 10, parallel = FALSE, ncores, Record = F, plot = F, SimExt = NULL){
+RandomExtinctionsEK <- function(Network, nsim = 10, parallel = FALSE, ncores, Record = F, plot = F, SimExt = NULL, IS = 0.3){
   NumExt <- sd <- AccSecExt <- AccSecExt_95CI <- AccSecExt_mean <- Lower <- NULL
   network <- .DataInit(x = Network)
   if(is.null(SimExt)){
@@ -219,7 +270,7 @@ RandomExtinctionsEK <- function(Network, nsim = 10, parallel = FALSE, ncores, Re
     cl <- makeCluster(ncores)
     registerDoParallel(cl)
     sims <- foreach(i=1:nsim, .packages = c("broom", "doParallel", "dplyr", "foreach", "ggplot2", "igraph", "magrittr", "network", "scales", "sna", "stats", "tidyr", "MASS", "parallel", "purrr"), .export = ".ExtinctionOrderEK")%dopar%{
-      sims <- try(.ExtinctionOrderEK(Network = network, Order = sample(1:network.size(network), size = SimExt)), silent = T)
+      sims <- try(.ExtinctionOrderEK(Network = network, Order = sample(1:network.size(network), size = SimExt), IS = IS), silent = T)
       # try({sims$simulation <- i}, silent = T)
       sims
     }
@@ -227,9 +278,9 @@ RandomExtinctionsEK <- function(Network, nsim = 10, parallel = FALSE, ncores, Re
   }else{
     sims <- list()
     for(i in 1:nsim){
-      sims[[i]] <- try(.ExtinctionOrder(Network = network, Order = sample(1:network.size(network), size = SimExt)), silent = TRUE)
+      sims[[i]] <- try(.ExtinctionOrderEK(Network = network, Order = sample(1:network.size(network), size = SimExt), IS = IS), silent = TRUE)
       try({sims[[i]]$simulation <- i}, silent = TRUE)
-      # message(paste("Simulation", i, "of", nsim, "ready"))
+      message(paste("Simulation", i, "of", nsim, "ready"))
     }
   }
   

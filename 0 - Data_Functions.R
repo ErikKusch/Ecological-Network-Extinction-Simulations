@@ -114,8 +114,8 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
 
 # Network Topology =========================================================
 FUN_Topo <- function(plot_df){
-  Nes <- try(networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
-  Mod <- try(NOS(web = plot_df)$mod, silent = TRUE)
+  Nes <- try(bipartite::networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
+  Mod <- try(bipartite::NOS(web = plot_df)$mod, silent = TRUE)
   round(
     data.frame(
       n_species = ncol(plot_df),
