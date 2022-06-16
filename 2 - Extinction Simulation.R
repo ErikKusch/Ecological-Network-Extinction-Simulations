@@ -129,14 +129,16 @@ animals_sp <- rownames(animals_gowdis)
 for(IS_iter in seq(0, 1, 0.05)){
   Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", IS = IS_iter)
   TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL", IS = IS_iter)
+  Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants", IS = IS_iter)
+  TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants", IS = IS_iter)
+  Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals", IS = IS_iter)
+  TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals", IS = IS_iter)
 }
-
-stop("repeat for bottom-up and top-down")
 
 # VISUALISATION ============================================================
 message("### RESULT VISUALISATION ###")
 
-
+stop("work out new visualisations")
 ## By Cascade Orientation --------------------------------------------------
 FUN_PlotMod <- function(Pre_df, Post_df, RunName){
   Plot_df <- rbind(Pre_df, Post_df)
