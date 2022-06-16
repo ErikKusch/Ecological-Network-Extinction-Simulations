@@ -55,7 +55,8 @@ package_vec <- c(
   "cowplot", # for arranging of plots
   "gridExtra", # for table grobs as legends in plots
   "dplyr", # for data cleaning
-  "ggpubr" # for t-test comparisons in ggplots
+  "ggpubr", # for t-test comparisons in ggplots
+  "NetworkExtinction" # for network extinction simulations
 )
 sapply(package_vec, install.load.package)
 
@@ -107,5 +108,5 @@ loadRData <- function(fileName){
 # return name of an object
 objName <- function(z){
   deparse(substitute(z))
-  }
+}
 
