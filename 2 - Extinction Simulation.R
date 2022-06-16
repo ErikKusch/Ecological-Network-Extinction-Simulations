@@ -139,171 +139,229 @@ for(IS_iter in seq(0, 1, 0.05)){
 # VISUALISATION ============================================================
 message("### RESULT VISUALISATION ###")
 
-stop("work out new visualisations")
-## By Cascade Orientation --------------------------------------------------
-FUN_PlotMod <- function(Pre_df, Post_df, RunName){
-  Plot_df <- rbind(Pre_df, Post_df)
-  Plot_df<- reshape(data = Plot_df,
-                    idvar = "netID",
-                    varying = colnames(Plot_df)[1:6],
-                    v.name = "Value",
-                    timevar = "Topology",
-                    times = colnames(Plot_df)[1:6],
-                    new.row.names = 1:(nrow(Plot_df)*6),
-                    direction = "long"
-  )
-  
-  ## PROXY COMPARISON ----
-  ProxyComp_ls <- as.list(rep(NA, length(unique(Plot_df$Topology))))
-  names(ProxyComp_ls) <- unique(Plot_df$Topology)
-  Titles <- c("Number of Species in Network following Extinction",
-              "Number of Plant Species in Network following Extinction",
-              "Number of Animal Species in Network following Extinction",
-              "Number of Realised Links in Network following Extinction",
-              "Nestedness of Network following Extinction", 
-              "Modularity of Network following Extinction")
-  Colours <- c("black", "green", "red", "purple", "blue", "orange")
-  for(i in 1:length(unique(Plot_df$Topology))){
-    ## Comparison of random vs. predicted
-    comps <- list(c("Random", "Prediction"))
-    RandPred_gg <- ggplot(Plot_df[Plot_df$Simulation != "Pre-Extinction" & 
-                                    Plot_df$Topology == unique(Plot_df$Topology)[i], ], 
-                          aes(x = factor(Simulation, levels = c("Random", "Prediction")), y = Value)) +
-      geom_boxplot(col = Colours[i]) +
-      facet_wrap(~factor(Proxy, levels = c("Strength", "Climate", "IUCN"))) + 
-      stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
-      theme_bw() + labs(x = "Simulation", y = "Network Topology Metric")
-    ## Comparison of proxy effects in predictions
-    comps <- list(c("Strength", "Climate"),
-                  c("Strength", "IUCN"),
-                  c("Climate", "IUCN")
-    )
-    PredComp_gg <- ggplot(Plot_df[Plot_df$Simulation != "Pre-Extinction" & 
-                                    Plot_df$Simulation != "Random" & 
-                                    Plot_df$Topology == unique(Plot_df$Topology)[i], ], 
-                          aes(x = factor(Proxy, levels = c("Strength", "Climate", "IUCN")), y = Value)) +
-      geom_boxplot(col = Colours[i]) +
-      stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
-      theme_bw() + labs(x = "Proxy", y = "Network Topology Metric")
-    ## Fusing of Plots
-    title <- ggdraw() + draw_label(paste0(Titles[i], " (", RunName, ")"), fontface='bold')
-    ProxyComp_ls[[i]] <- cowplot::plot_grid(title, RandPred_gg, PredComp_gg, ncol = 1, rel_heights = c(0.05, 0.5, 0.5)) 
+RunName = "ALL"
+
+fs <- list.files(path = Dir.Exports, pattern = paste0(RunName, "SimulationTopo"))
+IS_vec <- as.numeric(unlist(regmatches(fs,
+                             gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs))
+))
+fs <- fs[order(IS_vec)]
+
+for(i in 1:length(fs)){
+  Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
+  Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
+  Eff2_df$IS <- Topo2_df$IS <- sort(IS_vec)[i]
+  if(i == 1){
+    Eff_df <- Eff2_df
+    Topo_df <- Topo2_df
+    }else{
+    Eff_df <- rbind(Eff_df, Eff2_df)
+    Topo_df <- rbind(Topo_df, Topo2_df)
   }
-  ProxyComp_ls
-  
-  ## NETWORK TOPOLOGIES PRE AND POST EXTINCTION ----
-  comps <- list(c("Pre-Extinction", "Strength"),
-                c("Pre-Extinction", "Climate"),
-                c("Pre-Extinction", "IUCN")
-                # ,
-                # c("Strength", "Climate"),
-                # c("Strength", "IUCN"),
-                # c("Climate", "IUCN")
-  )
-  
-  PrePost_gg <- ggplot(Plot_df[Plot_df$Simulation != "Random", ], 
-                       aes(x = factor(Proxy, levels = c("Pre-Extinction", "Strength", "Climate", "IUCN")), y = Value)) +
+}
+colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
+Plot_df<- reshape(data = Eff_df,
+                  idvar = "netID",
+                  varying = colnames(Eff_df)[1:6],
+                  v.name = "Value",
+                  timevar = c("Topology"),
+                  times = colnames(Eff_df)[1:6],
+                  new.row.names = 1:(nrow(Eff_df)*6),
+                  direction = "long"
+)
+
+Eff_gg <- ggplot(Plot_df, aes(y = Value, x = IS, col = Pry, fill = Pry)) + 
+  geom_point(alpha = 0.2) + 
+  stat_smooth(method = "lm") + 
+  facet_wrap(~ factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+                                           "n_links", "Nestedness", "Modularity")), 
+             scales = "free", ncol = 3) + 
+  theme_bw() + 
+  labs(x = "Interaction Strength % Required For Survival", y = "Effect Size")
+
+Eff_ls <- lapply(unique(Plot_df$Pry), FUN = function(x){
+  ggplot(Plot_df, aes(y = Value, x = factor(IS))) + 
+      geom_boxplot() +
+      facet_wrap(~factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+                                              "n_links", "Nestedness", "Modularity")),
+                 scales = "free", ncol = 3) +
+      theme_bw() +
+      labs(x = "Interaction Strength % Required For Survival", y = "Effect Size", title = x)
+})
+
+Diff_df <- Topo_df[Topo_df$Simulation == "Prediction", 1:6] - PreExt_df[match(Topo_df[Topo_df$Simulation == "Prediction",]$netID, PreExt_df$netID), 1:6]
+Diff_df$IS <- Topo_df[Topo_df$Simulation == "Prediction",]$IS
+Diff_df$Proxy <- Topo_df[Topo_df$Simulation == "Prediction",]$Proxy
+
+Plot_df<- reshape(data = Diff_df,
+                  idvar = "netID",
+                  varying = colnames(Diff_df)[1:6],
+                  v.name = "Value",
+                  timevar = "Topology",
+                  times = colnames(Diff_df)[1:6],
+                  new.row.names = 1:(nrow(Diff_df)*6),
+                  direction = "long"
+)
+
+Diff_gg <- ggplot(Plot_df, aes(y = Value, x = IS, col = Proxy, fill = Proxy)) + 
+  geom_point(alpha = 0.2) + 
+  geom_smooth() + 
+  facet_wrap(~ factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+                                           "n_links", "Nestedness", "Modularity")), 
+             scales = "free", ncol = 3) + 
+  theme_bw() + 
+  labs(x = "Interaction Strength % Required For Survival", y = "Change In Network Topology Metric")
+
+
+Diff_ls <- lapply(unique(Plot_df$Proxy), FUN = function(x){
+  ggplot(Plot_df[Plot_df$Proxy == x, ], aes(y = Value, x = factor(IS))) +
     geom_boxplot() +
-    facet_wrap(~factor(Topology, levels = c("n_species", "n_plants", "n_animals",
-                                            "n_links", "Nestedness", "Modularity")), 
-               scales = "free") + 
-    stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
-    theme_bw() + labs(x = "Proxy", y = "Network Topology Metric")
-  
-  ## RETURN PLOT LIST ----
-  return(list(ProxyComp = ProxyComp_ls,
-              PrePost = PrePost_gg))
-  
-}
-
-Plots_ALL <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_ALL$Topo_df, RunName = "ALL")
-Plots_Plants <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Plants$Topo_df, RunName = "Plants")
-Plots_Animals <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Animals$Topo_df, RunName = "Animals")
-
-
-## By Extinction Proxy -----------------------------------------------------
+    facet_wrap(~ factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+                                             "n_links", "Nestedness", "Modularity")),
+               scales = "free", ncol = 3) +
+    theme_bw() +
+    labs(x = "Interaction Strength % Required For Survival", y = "Change In Network Topology Metric", title = x)
+})
 
 
 
 
-
-PreExt_df$Cascade <- "Pre-Extinction"
-TopoComp_ALL$Topo_df$Cascade <- "ALL"
-TopoComp_Plants$Topo_df$Cascade <- "Bottom-Up"
-TopoComp_Animals$Topo_df$Cascade <- "Top-Down"
-
-
-
-
-Plot_df <- rbind(PreExt_df,
-                 TopoComp_ALL$Topo_df,
-                 TopoComp_Plants$Topo_df, 
-                 TopoComp_Animals$Topo_df
-)
-Plot_df <- reshape(data = Plot_df,
-                   idvar = "netID",
-                   varying = colnames(Plot_df)[1:6],
-                   v.name = "Value",
-                   timevar = "Topology",
-                   times = colnames(Plot_df)[1:6],
-                   new.row.names = 1:(nrow(Plot_df)*6),
-                   direction = "long"
-)
-
-comps <- list(c("Pre-Extinction", "ALL"),
-              c("Pre-Extinction", "Bottom-Up"),
-              c("Pre-Extinction", "Top-Down")
-)
-
-Plots_ExtProxy <- as.list(rep(NA, length(unique(Plot_df$Proxy))-1))
-names(Plots_ExtProxy) <- unique(Plot_df$Proxy)[-1]
-
-for(i in 1:length(Plots_ExtProxy)){
-  k <- unique(Plot_df$Proxy)[-1][i]
-  Plots_ExtProxy[[k]] <- ggplot(Plot_df[Plot_df$Simulation != "Random" & (Plot_df$Proxy == k | Plot_df$Proxy == "Pre-Extinction"), ], 
-                                aes(x = factor(Cascade, levels = c("Pre-Extinction", "ALL", "Bottom-Up", "Top-Down")), 
-                                    y = Value)) + 
-    geom_violin(col = "brown") + 
-    facet_wrap(~factor(Topology, levels = c("n_species", "n_plants", "n_animals",
-                                            "n_links", "Nestedness", "Modularity")), 
-               scales = "free") + 
-    stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
-    theme_bw() + labs(x = "Extinction Cascade", title = k)
-}
-Plots_ExtProxy
-
-
-
-
-
-pdf("Print.pdf", paper="USr", width = 12, height = 9)
-Plots_ALL
-Plots_Animals
-Plots_Plants
-Plots_ExtProxy
+pdf("Print.pdf", paper = "a4r", height = 9, width = 12)
+Eff_gg
+Eff_ls
+Diff_gg
+Diff_ls
 dev.off()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# stop("work out new visualisations")
+# ## By Cascade Orientation --------------------------------------------------
+# FUN_PlotMod <- function(Pre_df, Post_df, RunName){
+#   Plot_df <- rbind(Pre_df, Post_df)
+#   Plot_df<- reshape(data = Plot_df,
+#                     idvar = "netID",
+#                     varying = colnames(Plot_df)[1:6],
+#                     v.name = "Value",
+#                     timevar = "Topology",
+#                     times = colnames(Plot_df)[1:6],
+#                     new.row.names = 1:(nrow(Plot_df)*6),
+#                     direction = "long"
+#   )
+#   
+#   ## PROXY COMPARISON ----
+#   ProxyComp_ls <- as.list(rep(NA, length(unique(Plot_df$Topology))))
+#   names(ProxyComp_ls) <- unique(Plot_df$Topology)
+#   Titles <- c("Number of Species in Network following Extinction",
+#               "Number of Plant Species in Network following Extinction",
+#               "Number of Animal Species in Network following Extinction",
+#               "Number of Realised Links in Network following Extinction",
+#               "Nestedness of Network following Extinction", 
+#               "Modularity of Network following Extinction")
+#   Colours <- c("black", "green", "red", "purple", "blue", "orange")
+#   for(i in 1:length(unique(Plot_df$Topology))){
+#     ## Comparison of random vs. predicted
+#     comps <- list(c("Random", "Prediction"))
+#     RandPred_gg <- ggplot(Plot_df[Plot_df$Simulation != "Pre-Extinction" & 
+#                                     Plot_df$Topology == unique(Plot_df$Topology)[i], ], 
+#                           aes(x = factor(Simulation, levels = c("Random", "Prediction")), y = Value)) +
+#       geom_boxplot(col = Colours[i]) +
+#       facet_wrap(~factor(Proxy, levels = c("Strength", "Climate", "IUCN"))) + 
+#       stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
+#       theme_bw() + labs(x = "Simulation", y = "Network Topology Metric")
+#     ## Comparison of proxy effects in predictions
+#     comps <- list(c("Strength", "Climate"),
+#                   c("Strength", "IUCN"),
+#                   c("Climate", "IUCN")
+#     )
+#     PredComp_gg <- ggplot(Plot_df[Plot_df$Simulation != "Pre-Extinction" & 
+#                                     Plot_df$Simulation != "Random" & 
+#                                     Plot_df$Topology == unique(Plot_df$Topology)[i], ], 
+#                           aes(x = factor(Proxy, levels = c("Strength", "Climate", "IUCN")), y = Value)) +
+#       geom_boxplot(col = Colours[i]) +
+#       stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
+#       theme_bw() + labs(x = "Proxy", y = "Network Topology Metric")
+#     ## Fusing of Plots
+#     title <- ggdraw() + draw_label(paste0(Titles[i], " (", RunName, ")"), fontface='bold')
+#     ProxyComp_ls[[i]] <- cowplot::plot_grid(title, RandPred_gg, PredComp_gg, ncol = 1, rel_heights = c(0.05, 0.5, 0.5)) 
+#   }
+#   ProxyComp_ls
+#   
+#   ## NETWORK TOPOLOGIES PRE AND POST EXTINCTION ----
+#   comps <- list(c("Pre-Extinction", "Strength"),
+#                 c("Pre-Extinction", "Climate"),
+#                 c("Pre-Extinction", "IUCN")
+#                 # ,
+#                 # c("Strength", "Climate"),
+#                 # c("Strength", "IUCN"),
+#                 # c("Climate", "IUCN")
+#   )
+#   
+#   PrePost_gg <- ggplot(Plot_df[Plot_df$Simulation != "Random", ], 
+#                        aes(x = factor(Proxy, levels = c("Pre-Extinction", "Strength", "Climate", "IUCN")), y = Value)) +
+#     geom_boxplot() +
+#     facet_wrap(~factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+#                                             "n_links", "Nestedness", "Modularity")), 
+#                scales = "free") + 
+#     stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
+#     theme_bw() + labs(x = "Proxy", y = "Network Topology Metric")
+#   
+#   ## RETURN PLOT LIST ----
+#   return(list(ProxyComp = ProxyComp_ls,
+#               PrePost = PrePost_gg))
+#   
+# }
+# 
+# Plots_ALL <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_ALL$Topo_df, RunName = "ALL")
+# Plots_Plants <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Plants$Topo_df, RunName = "Plants")
+# Plots_Animals <- FUN_PlotMod(Pre_df = PreExt_df, Post_df = TopoComp_Animals$Topo_df, RunName = "Animals")
+# 
+# 
+# ## By Extinction Proxy -----------------------------------------------------
+# 
+# 
+# 
+# 
+# 
+# PreExt_df$Cascade <- "Pre-Extinction"
+# TopoComp_ALL$Topo_df$Cascade <- "ALL"
+# TopoComp_Plants$Topo_df$Cascade <- "Bottom-Up"
+# TopoComp_Animals$Topo_df$Cascade <- "Top-Down"
+# 
+# 
+# 
+# 
+# Plot_df <- rbind(PreExt_df,
+#                  TopoComp_ALL$Topo_df,
+#                  TopoComp_Plants$Topo_df, 
+#                  TopoComp_Animals$Topo_df
+# )
+# Plot_df <- reshape(data = Plot_df,
+#                    idvar = "netID",
+#                    varying = colnames(Plot_df)[1:6],
+#                    v.name = "Value",
+#                    timevar = "Topology",
+#                    times = colnames(Plot_df)[1:6],
+#                    new.row.names = 1:(nrow(Plot_df)*6),
+#                    direction = "long"
+# )
+# 
+# comps <- list(c("Pre-Extinction", "ALL"),
+#               c("Pre-Extinction", "Bottom-Up"),
+#               c("Pre-Extinction", "Top-Down")
+# )
+# 
+# Plots_ExtProxy <- as.list(rep(NA, length(unique(Plot_df$Proxy))-1))
+# names(Plots_ExtProxy) <- unique(Plot_df$Proxy)[-1]
+# 
+# for(i in 1:length(Plots_ExtProxy)){
+#   k <- unique(Plot_df$Proxy)[-1][i]
+#   Plots_ExtProxy[[k]] <- ggplot(Plot_df[Plot_df$Simulation != "Random" & (Plot_df$Proxy == k | Plot_df$Proxy == "Pre-Extinction"), ], 
+#                                 aes(x = factor(Cascade, levels = c("Pre-Extinction", "ALL", "Bottom-Up", "Top-Down")), 
+#                                     y = Value)) + 
+#     geom_violin(col = "brown") + 
+#     facet_wrap(~factor(Topology, levels = c("n_species", "n_plants", "n_animals",
+#                                             "n_links", "Nestedness", "Modularity")), 
+#                scales = "free") + 
+#     stat_compare_means(comparisons = comps, method = 't.test', label = 'p.signif') +
+#     theme_bw() + labs(x = "Extinction Cascade", title = k)
+# }
+# Plots_ExtProxy
