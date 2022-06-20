@@ -130,13 +130,21 @@ FUN_Topo <- function(plot_df){
 # Extinction Simulation ====================================================
 FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of plant species names or animal species names
                         RunName = "ALL", # for file naming
-                        IS = 0.3
+                        IS = 0.3,
+                        CutOffs,
+                        WHICH = c("Strength", "Climate", "IUCN")
 ){
   
   print(paste0(RunName, "; IS = ", IS))
-  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", IS, ".RData")))){
+  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
+                                               IS, 
+                                               "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
+                                               ".RData")))){
     print("Extinctions already simulated")
-    load(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", IS, ".RData")))
+    load(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
+                                       IS, 
+                                       "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
+                                       ".RData")))
     return(Sim_ls)
   }else{
     Sim_ls <- pblapply(names(AnalysisData_ls), 
@@ -157,74 +165,87 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          
                          ## Centrality-Driven -------------------------------------------------------
                          # print("Extinction of Keystone Species (Centrality)")
-                         proxcen <- x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, 0.75)] # just eliminate upper 25% quantile
-                         primext_names <- names(proxcen)
-                         primext_order <- match(primext_names, rownames(x$Adjacency))
-                         CustOrder_ExtS <- ExtinctionOrderEK(Network = net, Order = primext_order, IS = IS)
-                         ExtS_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
-                                                          parallel = FALSE, ncores = parallel::detectCores(), 
-                                                          SimExt = length(proxcen),
-                                                          IS = IS)
-                         # closeAllConnections()
-                         # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]])
+                         proxcen <- x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, CutOffs$Strength)] # just eliminate upper 25% quantile
+                         primext_namesS <- names(proxcen)
+                         primext_order <- match(primext_namesS, rownames(x$Adjacency))
+                         CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA))
+                         if("Strength" %in% WHICH){
+                           CustOrder_ExtS <- ExtinctionOrderEK(Network = net, Order = primext_order, IS = IS)
+                           ExtS_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                                                            parallel = FALSE, ncores = parallel::detectCores(), 
+                                                            SimExt = length(proxcen),
+                                                            IS = IS)
+                           # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
+                         }
                          
                          ## Climate-Driven ----------------------------------------------------------
                          # print("Extinction of Threatened Species (Climate Projections)")
-                         primext_names <- names(x$prox_climate)[x$prox_climate > 2] # random cutoff of climate risk severity selected here
+                         primext_namesC <- names(x$prox_climate)[x$prox_climate > CutOffs$Climate] # random cutoff of climate risk severity selected here
+                         primext_order <- match(primext_namesC, rownames(x$Adjacency))
                          CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
-                         if(length(primext_names) != 0){
-                           primext_order <- match(primext_names, rownames(x$Adjacency))
-                           CustOrder_ExtC <- ExtinctionOrderEK(Network = net, Order = primext_order,
-                                                               IS = IS)
-                           ExtC_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
-                                                            parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimExt = length(primext_names),
-                                                            IS = IS)
-                           # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
-                           # closeAllConnections()
+                         if("Climate" %in% WHICH){
+                           if(length(primext_namesC) != 0){
+                             CustOrder_ExtC <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                                                                 IS = IS)
+                             ExtC_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                                                              parallel = FALSE, ncores = parallel::detectCores(), 
+                                                              SimExt = length(primext_namesC),
+                                                              IS = IS)
+                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
+                           } 
                          }
                          
                          ## IUCN-Driven -------------------------------------------------------------
                          # print("Extinction of Threatened Species (IUCN Categories)")
-                         primext_names <- names(x$prox_IUCN)[x$prox_IUCN > 3] # random cutoff of climate risk severity selected here
+                         primext_namesI <- names(x$prox_IUCN)[x$prox_IUCN > CutOffs$Climate] # random cutoff of climate risk severity selected here
+                         primext_order <- match(primext_namesI, rownames(x$Adjacency))
                          CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
-                         if(length(primext_names) != 0){
-                           primext_order <- match(primext_names, rownames(x$Adjacency))
-                           CustOrder_ExtI <- ExtI_Rand <- ExtinctionOrderEK(Network = net, Order = primext_order,
-                                                                            IS = IS)
-                           ExtI_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
-                                                            parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimExt = length(primext_names),
-                                                            IS = IS)
-                           # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
-                           # closeAllConnections()
+                         if("IUCN" %in% WHICH){
+                           if(length(primext_namesI) != 0){
+                             CustOrder_ExtI <- ExtI_Rand <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                                                                              IS = IS)
+                             ExtI_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                                                              parallel = FALSE, ncores = parallel::detectCores(), 
+                                                              SimExt = length(primext_namesI),
+                                                              IS = IS)
+                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
+                           } 
                          }
-                         # stopCluster(cl)
                          
                          ## Export ------------------------------------------------------------------
-                         list(Strength = list(Prediction = as.matrix(CustOrder_ExtS[[2]]),
+                         list(Strength = list(Removed = primext_namesS,
+                                              Prediction = as.matrix(CustOrder_ExtS[[2]]),
                                               Random = lapply(ExtS_Rand$nets, as.matrix)
                          ),
-                         Climate = list(Prediction = as.matrix(CustOrder_ExtC[[2]]),
+                         Climate = list(Removed = primext_namesC,
+                                        Prediction = as.matrix(CustOrder_ExtC[[2]]),
                                         Random = lapply(ExtC_Rand$nets, as.matrix)
                          ),
-                         IUCN = list(Prediction = as.matrix(CustOrder_ExtI[[2]]),
+                         IUCN = list(Removed = primext_namesI,
+                                     Prediction = as.matrix(CustOrder_ExtI[[2]]),
                                      Random = lapply(ExtI_Rand$nets, as.matrix)
                          )
                          )
                        })
     names(Sim_ls) <- names(AnalysisData_ls)
-    save(Sim_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationNets_", IS, ".RData"))) 
+    save(Sim_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
+                                                      IS, 
+                                                      "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
+                                                      ".RData"))) 
     return(Sim_ls)
   }
 }
 
 # Network Topology Comparison ==============================================
-FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS){
+FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, CutOffs){
   
-  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, ".RData")))){
+  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, 
+                                               "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
+                                               ".RData")))){
     print("Topology already extracted")
-    load(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, ".RData")))
+    load(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, 
+                                       "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
+                                       ".RData")))
     return(Save_ls)
   }else{
     ## Topology Calculation
@@ -286,7 +307,37 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS){
     Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df, Eff_df = Eff_df)
     
     ## Data Return
-    save(Save_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, ".RData")))
+    save(Save_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, 
+                                                       "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
+                                                       ".RData")))
     return(Save_ls)
   }
+}
+
+# Loading topology data for each extinction cascade ========================
+loadTopo <- function(RunName = "ALL", CutOffs){
+  fs <- list.files(path = Dir.Exports, pattern = paste0(RunName, "SimulationTopo"))
+  fs <- fs[grep(pattern = paste(unlist(CutOffs), collapse = "-"), fs)]
+  IS_vec <- as.numeric(unlist(
+    lapply(
+      regmatches(fs, gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs)), 
+      "[[", 1
+    )
+  ))
+  fs <- fs[order(IS_vec)]
+  
+  for(i in 1:length(fs)){
+    Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
+    Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
+    Eff2_df$IS <- Topo2_df$IS <- sort(IS_vec)[i]
+    if(i == 1){
+      Eff_df <- Eff2_df
+      Topo_df <- Topo2_df
+    }else{
+      Eff_df <- rbind(Eff_df, Eff2_df)
+      Topo_df <- rbind(Topo_df, Topo2_df)
+    }
+  }
+  colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
+  return(list(Topo_df, Eff_df))
 }
