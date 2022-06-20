@@ -94,7 +94,7 @@
     } else if (clust.method == "none"){
       Membership = NA
     }else stop('Select a valid method for clustering. ?SimulateExtinction')
-    if(is.na(Membership)){
+    if(is.na(Membership)[1]){
       DF$Modularity[i] <- NA
     }else{
       DF$Modularity[i] <- suppressWarnings(modularity(Membership))
