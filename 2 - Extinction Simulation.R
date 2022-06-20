@@ -103,12 +103,16 @@ AnalysisData_ls <- AnalysisData_ls[ErrorCheck == 2]
 plants_sp <- rownames(plants_gowdis)
 animals_sp <- rownames(animals_gowdis)
 
+CutOffs <- list(Strength = 0.75,
+                Climate = 2,
+                IUCN = 5)
+
 message("### REGISTERING CLUSTER")
 nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls), 
                  length(AnalysisData_ls), parallel::detectCores())
 cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
 parallel::clusterExport(cl,
-                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", ".ExtinctionOrderEK", "ExtinctionOrderEK", "RandomExtinctionsEK", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp"),
+                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", ".ExtinctionOrderEK", "ExtinctionOrderEK", "RandomExtinctionsEK", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp", "CutOffs"),
                         envir = environment()
 )
 clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.package))
@@ -126,10 +130,6 @@ PreExt_df$Simulation <- "Pre-Extinction"
 
 # POST-EXCTINCTION =========================================================
 message("### EXTINCTION SIMULATION(S) ###")
-
-CutOffs <- list(Strength = 0.75,
-                Climate = 2,
-                IUCN = 5)
 
 for(IS_iter in seq(0, 1, 0.05)){
   Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", IS = IS_iter, CutOffs = CutOffs)
