@@ -189,7 +189,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                  IS = IS)
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
-                                                              SimExt = length(primext_namesC),
+                                                              SimNum = length(primext_namesC),
                                                               IS = IS)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
@@ -206,7 +206,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                               IS = IS)
                              ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
-                                                              SimExt = length(primext_namesI),
+                                                              SimNum = length(primext_namesI),
                                                               IS = IS)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
