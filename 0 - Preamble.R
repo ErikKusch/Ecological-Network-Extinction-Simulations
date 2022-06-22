@@ -28,6 +28,7 @@ rm(list = c("CreateDir", "ExportDirs", "DataDirs"))
 
 # PACKAGES ================================================================
 ## CRAN -------------------------------------------------------------------
+# devtools::install_github("ErikKusch/NetworkExtinction", ref = "ErikDevel")
 install.load.package <- function(x) {
   if (!require(x, character.only = TRUE))
     install.packages(x, repos='http://cran.us.r-project.org')
@@ -42,8 +43,23 @@ package_vec <- c(
   "pbapply", # for apply with progress bar
   "data.table", # for data handling
   "rnaturalearth", # for landmask in projection kriging
-  "rnaturalearthdata" # for landmask in projection kriging
-  
+  "rnaturalearthdata", # for landmask in projection kriging
+  "rredlist", # for IUCN risk retrieval
+  "ConR", # for computation of IUCN risks
+  # "CoordinateCleaner", # for additional occurrence cleaning; NOT NEEDED ANYMORE
+  "igraph", # for graph operations
+  "FD", # for gower distance of trait data
+  "reshape2", # for making network matrices into plottable data frames via melt()
+  "bipartite", # for bipartite network analyses
+  "leaflet", # for html map products to investigate networks separately
+  "leafpop", # for graph popups in leaflet output
+  "cowplot", # for arranging of plots
+  "gridExtra", # for table grobs as legends in plots
+  "dplyr", # for data cleaning
+  "ggpubr", # for t-test comparisons in ggplots
+  "NetworkExtinction", # for network extinction simulations
+  "viridis", # for extra colours in ggplot
+  "ggvenn" # for venn diagrams
 )
 sapply(package_vec, install.load.package)
 
@@ -74,6 +90,26 @@ hush <- function(code){
   return(tmp)
 }
 
-Sort.DF <- function(Data = NULL, Column = NULL){
-  Data[order(Data[ , Column] ), ]
+Sort.DF <- function(Data = NULL, Column = NULL, decreasing = FALSE){
+  Data[order(Data[ , Column], decreasing = decreasing), ]
 }
+
+if(!exists("IUCN_Key")){
+  IUCN_Key <- readline(prompt = "Please enter your IUCN API key.")
+}
+
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+# loads .RData objects to a specified named object
+loadRData <- function(fileName){
+  #loads an RData file, and returns it
+  get(load(fileName))
+}
+
+# return name of an object
+objName <- function(z){
+  deparse(substitute(z))
+}
+
