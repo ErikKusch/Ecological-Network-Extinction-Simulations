@@ -170,7 +170,6 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          primext_order <- match(primext_namesS, rownames(x$Adjacency))
                          CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA))
                          if("Strength" %in% WHICH){
-                           
                            CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order, IS = IS)
                            ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
@@ -186,9 +185,9 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
                          if("Climate" %in% WHICH){
                            if(length(primext_namesC) != 0){
-                             CustOrder_ExtC <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                             CustOrder_ExtC <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                  IS = IS)
-                             ExtC_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimExt = length(primext_namesC),
                                                               IS = IS)
@@ -203,9 +202,9 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
                          if("IUCN" %in% WHICH){
                            if(length(primext_namesI) != 0){
-                             CustOrder_ExtI <- ExtI_Rand <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                             CustOrder_ExtI <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                               IS = IS)
-                             ExtI_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                             ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimExt = length(primext_namesI),
                                                               IS = IS)

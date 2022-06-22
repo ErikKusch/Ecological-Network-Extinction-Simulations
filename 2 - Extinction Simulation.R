@@ -161,45 +161,6 @@ for(RunName in c("ALL", "Plants", "Animals")){
   ggsave(filename = file.path(Dir.Exports, paste0("PLOT_Proxy", RunName,".png")), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
 }
 
-
-
-
-
-
-# ExtSpecies_ls <- pblapply(names(AnalysisData_ls), function(x){
-#   x <- AnalysisData_ls[[x]]
-#   x <- list(centrality = names(x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, CutOffs$Strength)]),
-#        climate = names(x$prox_climate)[x$prox_climate > CutOffs$Climate],
-#        iucn = names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN]
-#   )
-#   list(Centrality = x$centrality,
-#        Climate = x$climate,
-#        IUCN = x$iucn,
-#        Overlap = data.frame(CentClim = sum(x$centrality %in% x$climate)/length(x$centrality),
-#                             CentIUCN = sum(x$centrality %in% x$iucn)/length(x$centrality),
-#                             ClimCent = sum(x$climate %in% x$centrality)/length(x$climate),
-#                             ClimIUCN = sum(x$climate %in% x$iucn)/length(x$climate),
-#                             IUCNClim = sum(x$iucn %in% x$climate)/length(x$iucn),
-#                             IUCNCent = sum(x$iucn %in% x$centrality)/length(x$iucn)
-#        ))
-# 
-# })
-# ExtOverlap_df <- do.call(rbind, lapply(ExtSpecies_ls, "[[", "Overlap"))
-# ExtOverlap_df <- reshape(data = ExtOverlap_df,
-#                          varying = colnames(ExtOverlap_df),
-#                          v.name = "Value",
-#                          timevar = "Comparison",
-#                          times = colnames(ExtOverlap_df),
-#                          direction = "long"
-# )
-# ggplot(ExtOverlap_df, aes(y = Value, x = factor(Comparison))) +
-#   geom_boxplot() +
-#   theme_bw() + labs(x = "Combination of Proxies", y = "Overlap")
-# Venn_ls <- list(Centrality = unlist(lapply(ExtSpecies_ls, "[[", "Centrality")),
-#                 Climate = unlist(lapply(ExtSpecies_ls, "[[", "Climate")),
-#                 IUCN = unlist(lapply(ExtSpecies_ls, "[[", "IUCN")))
-
-
 ## Effects of each extinction proxy ----------------------------------------
 
 ## Effects of each extinction cascade --------------------------------------
