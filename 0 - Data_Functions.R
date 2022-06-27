@@ -122,6 +122,8 @@ FUN_Topo <- function(plot_df){
       n_animals = sum(colnames(plot_df) %in% rownames(animals_gowdis)),
       n_plants = sum(colnames(plot_df) %in% rownames(plants_gowdis)),
       n_links = sum(plot_df>0),
+      mean_interac = mean(plot_df[plot_df>0]),
+      connectedness = sum(plot_df>0)/length(plot_df),
       Nestedness = as.numeric(ifelse(class(Nes) == "try-error", NA, Nes)),
       Modularity = as.numeric(ifelse(class(Mod) == "try-error", NA, Mod))
     ), 4)
@@ -170,10 +172,10 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          primext_order <- match(primext_namesS, rownames(x$Adjacency))
                          CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA))
                          if("Strength" %in% WHICH){
-                           CustOrder_ExtS <- ExtinctionOrderEK(Network = net, Order = primext_order, IS = IS)
-                           ExtS_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                           CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order, IS = IS)
+                           ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimExt = length(proxcen),
+                                                            SimNum = length(proxcen),
                                                             IS = IS)
                            # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
                          }
@@ -185,11 +187,11 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
                          if("Climate" %in% WHICH){
                            if(length(primext_namesC) != 0){
-                             CustOrder_ExtC <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                             CustOrder_ExtC <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                  IS = IS)
-                             ExtC_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
-                                                              SimExt = length(primext_namesC),
+                                                              SimNum = length(primext_namesC),
                                                               IS = IS)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
@@ -202,11 +204,11 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
                          if("IUCN" %in% WHICH){
                            if(length(primext_namesI) != 0){
-                             CustOrder_ExtI <- ExtI_Rand <- ExtinctionOrderEK(Network = net, Order = primext_order,
+                             CustOrder_ExtI <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                               IS = IS)
-                             ExtI_Rand <- RandomExtinctionsEK(Network = net, nsim = 100, 
+                             ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
-                                                              SimExt = length(primext_namesI),
+                                                              SimNum = length(primext_namesI),
                                                               IS = IS)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
@@ -315,7 +317,8 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, CutOffs){
 }
 
 # Loading topology data for each extinction cascade ========================
-loadTopo <- function(RunName = "ALL", CutOffs){
+loadTopo <- function(RunName = "ALL", CutOffs, Pre){
+  Topos_vec <- c("n_species", "n_plants", "n_animals", "n_links", "Nestedness", "Modularity")
   fs <- list.files(path = Dir.Exports, pattern = paste0(RunName, "SimulationTopo"))
   fs <- fs[grep(pattern = paste(unlist(CutOffs), collapse = "-"), fs)]
   IS_vec <- as.numeric(unlist(
@@ -325,19 +328,43 @@ loadTopo <- function(RunName = "ALL", CutOffs){
     )
   ))
   fs <- fs[order(IS_vec)]
-  
+  pb <- txtProgressBar(min = 0, max = length(fs), style = 3)
   for(i in 1:length(fs)){
+    ## data extraction
     Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
     Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
     Eff2_df$IS <- Topo2_df$IS <- sort(IS_vec)[i]
-    if(i == 1){
+    
+    ## difference to pre-extinction
+    ## Relative effect
+    RelTopo_df <- Topo2_df[Topo2_df$Simulation == "Prediction", ]
+    PlotCombin_df <- merge(Pre, RelTopo_df, by = c("netID"))
+    Rel_ls <- lapply(Topos_vec, function(x){
+      Change_vec <- apply(PlotCombin_df[ , grepl(x,colnames(PlotCombin_df))], 1, diff)
+      Plot_df <- data.frame(
+        netID = PlotCombin_df$netID,
+        Proxy = PlotCombin_df$Proxy.y,
+        IS = PlotCombin_df$IS,
+        Topology = x,
+        # Pre = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[1]],
+        Post = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[2]],
+        AbsChange = Change_vec
+      )
+      Plot_df$RelChange <- abs(Plot_df$AbsChange)/PlotCombin_df[,grep(x,colnames(PlotCombin_df))[1]]
+      Plot_df
+    })
+    Change2_df <- do.call(rbind, Rel_ls)
+  if(i == 1){
       Eff_df <- Eff2_df
       Topo_df <- Topo2_df
+      Change_df <- Change2_df
     }else{
       Eff_df <- rbind(Eff_df, Eff2_df)
       Topo_df <- rbind(Topo_df, Topo2_df)
+      Change_df <- rbind(Change_df, Change2_df)
     }
+    setTxtProgressBar(pb, i)
   }
   colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
-  return(list(Topo_df, Eff_df))
+  return(list(Topology = Topo_df, EffectSize = Eff_df, Change = Change_df))
 }

@@ -146,53 +146,97 @@ message("Sensitivity analysis for WHICH = 'Strength' in FUN_SimComp.")
 message("### RESULT VISUALISATION ###")
 pal_lm <- c("#016392", "#E19825", "#3E8853")
 
-PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs)
-PlotTopoPlants_ls <- loadTopo(RunName = "Plants", CutOffs = CutOffs)
-PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs)
+## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
+PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs, Pre = PreExt_df)
+PlotTopoPlants_ls <- loadTopo(RunName = "Plants", CutOffs = CutOffs, Pre = PreExt_df)
+PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs, Pre = PreExt_df)
 
 ## Venn-Diagram of Proxy Agreement -----------------------------------------
 print("Extinction Proxy Overlap ---")
-ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", IS = 1, CutOffs = CutOffs)
-# ExtSpecies_ls <- pblapply(names(AnalysisData_ls), function(x){
-#   x <- AnalysisData_ls[[x]]
-#   x <- list(centrality = names(x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, CutOffs$Strength)]),
-#        climate = names(x$prox_climate)[x$prox_climate > CutOffs$Climate],
-#        iucn = names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN]
-#   )
-#   list(Centrality = x$centrality,
-#        Climate = x$climate,
-#        IUCN = x$iucn,
-#        Overlap = data.frame(CentClim = sum(x$centrality %in% x$climate)/length(x$centrality),
-#                             CentIUCN = sum(x$centrality %in% x$iucn)/length(x$centrality),
-#                             ClimCent = sum(x$climate %in% x$centrality)/length(x$climate),
-#                             ClimIUCN = sum(x$climate %in% x$iucn)/length(x$climate),
-#                             IUCNClim = sum(x$iucn %in% x$climate)/length(x$iucn),
-#                             IUCNCent = sum(x$iucn %in% x$centrality)/length(x$iucn)
-#        ))
-# 
-# })
-# ExtOverlap_df <- do.call(rbind, lapply(ExtSpecies_ls, "[[", "Overlap"))
-# ExtOverlap_df <- reshape(data = ExtOverlap_df,
-#                          varying = colnames(ExtOverlap_df),
-#                          v.name = "Value",
-#                          timevar = "Comparison",
-#                          times = colnames(ExtOverlap_df),
-#                          direction = "long"
-# )
-# ggplot(ExtOverlap_df, aes(y = Value, x = factor(Comparison))) +
-#   geom_boxplot() +
-#   theme_bw() + labs(x = "Combination of Proxies", y = "Overlap")
-# Venn_ls <- list(Centrality = unlist(lapply(ExtSpecies_ls, "[[", "Centrality")),
-#                 Climate = unlist(lapply(ExtSpecies_ls, "[[", "Climate")),
-#                 IUCN = unlist(lapply(ExtSpecies_ls, "[[", "IUCN")))
-
-Venn_ls <- list(Climate = unlist(lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed")),
-                IUCN = unlist(lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed")),
-                Centrality = unlist(lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed")))
-ggvenn(Venn_ls, fill_color = pal_lm, fill_alpha = 0.8, text_color = "white")
-ggsave(filename = file.path(Dir.Exports, "PLOT_Proxy.png"), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
+for(RunName in c("ALL", "Plants", "Animals")){
+  ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 0, CutOffs = CutOffs)
+  
+  ## number of primary extinctions per proxy
+  Clim_ls <- lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed")
+  IUCN_ls <- lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed")
+  Centr_ls <- lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed")
+  ClimIUCN_ls <- lapply(1:length(Clim_ls), function(x){sum(Clim_ls[[x]] %in% IUCN_ls[[x]])})
+  ClimCentr_ls <- lapply(1:length(Clim_ls), function(x){sum(Clim_ls[[x]] %in% Centr_ls[[x]])})
+  IUCNCentr_ls <- lapply(1:length(Clim_ls), function(x){sum(IUCN_ls[[x]] %in% Centr_ls[[x]])})
+  All_ls <- lapply(1:length(Clim_ls), function(x){
+    sum(
+      IUCN_ls[[x]][IUCN_ls[[x]] %in% Centr_ls[[x]]] %in% Clim_ls[[x]]
+      )
+    })
+  ## absolute numbers of primary extinctions per network
+  PrimaryExt_df <- data.frame(
+    Climate = unlist(lapply(Clim_ls, length)),
+    IUCN = unlist(lapply(IUCN_ls, length)),
+    Centrality = unlist(lapply(Centr_ls, length)),
+    `Climate+IUCN` = unlist(ClimIUCN_ls),
+    `Climate+Centrality` = unlist(ClimCentr_ls),
+    `IUCN+Centrality` = unlist(IUCNCentr_ls),
+    All = unlist(All_ls)
+  )
+  ## relative numbers of primary extinctions per network
+  PrimaryExt_df <- apply(X = PrimaryExt_df, MARGIN = 2, function(x){
+    x/PreExt_df$n_species
+  })
+  ## summary statistics
+  PrimExt_df <- data.frame(min = apply(PrimaryExt_df, 2, min),
+                           mean = apply(PrimaryExt_df, 2, mean),
+                           max = apply(PrimaryExt_df, 2, max),
+                           sd = apply(PrimaryExt_df, 2, sd))
+  print(PrimExt_df)
+  
+  ## Total Venn-Diagram
+  Venn_ls <- list(Climate = unlist(lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed")),
+                  IUCN = unlist(lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed")),
+                  Centrality = unlist(lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed")))
+  ggvenn(Venn_ls, fill_color = pal_lm, fill_alpha = 0.8, text_color = "white")
+  ggsave(filename = file.path(Dir.Exports, paste0("PLOT_Proxy", RunName,".png")), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
+}
 
 ## Effects of each extinction proxy ----------------------------------------
+TopoPlots <- c("n_species", "n_animals", "n_plants")
+ggplot(PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,],
+       aes(x = IS, y = RelChange, col = Proxy)) + 
+  geom_point(alpha = 0.4) + 
+  geom_smooth() + 
+  facet_wrap(~Topology, scales = "free", ncol = 1) + 
+  scale_color_manual(values = pal_lm) + 
+  theme_bw() + 
+  labs(y = "Relative Change in Network Topology (Pre- vs Post-Extinction)",
+       x = "Network Dependency")
+
+ggplot(PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,],
+       aes(x = factor(IS), y = RelChange, col = Proxy)) + 
+  geom_boxplot() + 
+  facet_wrap(~Topology + Proxy, scales = "free", ncol = 3) + 
+  scale_color_manual(values = pal_lm) + 
+  theme_bw() + 
+  labs(y = "Relative Change in Network Topology (Pre- vs Post-Extinction)",
+       x = "Network Dependency")
+
+Compare_df <- PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,]
+Clim_df <- Compare_df[Compare_df$Proxy == "Climate", ]
+IUCN_df <- Compare_df[Compare_df$Proxy == "IUCN", ]
+
+Plot_df <- Clim_df[,1:4]
+Plot_df <- cbind(Plot_df, Clim_df$RelChange - IUCN_df$RelChange)
+colnames(Plot_df)[ncol(Plot_df)] <- "Difference"
+
+ggplot(Plot_df,
+       aes(x = factor(IS), y = Difference)) + 
+  geom_hline(yintercept = 0) + 
+  geom_boxplot() +
+  facet_wrap(~Topology, scales = "free", ncol = 1) + 
+  scale_color_manual(values = pal_lm) + 
+  theme_bw() + 
+  labs(title = "Difference between Climate- and IUCN-driven Extinctions",
+       y = "Climate - IUCN Difference",
+       x = "Network Dependency")
+
 
 ## Effects of each extinction cascade --------------------------------------
 

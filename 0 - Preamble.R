@@ -28,6 +28,7 @@ rm(list = c("CreateDir", "ExportDirs", "DataDirs"))
 
 # PACKAGES ================================================================
 ## CRAN -------------------------------------------------------------------
+# devtools::install_github("ErikKusch/NetworkExtinction", ref = "ErikDevel")
 install.load.package <- function(x) {
   if (!require(x, character.only = TRUE))
     install.packages(x, repos='http://cran.us.r-project.org')
