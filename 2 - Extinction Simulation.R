@@ -182,6 +182,7 @@ for(RunName in c("ALL", "Plants", "Animals")){
   PrimaryExt_df <- apply(X = PrimaryExt_df, MARGIN = 2, function(x){
     x/PreExt_df$n_species
   })
+  
   ## summary statistics
   PrimExt_df <- data.frame(min = apply(PrimaryExt_df, 2, min),
                            mean = apply(PrimaryExt_df, 2, mean),
