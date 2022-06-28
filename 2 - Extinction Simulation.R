@@ -14,7 +14,7 @@ set.seed(42)
 
 ## Sourcing ----------------------------------------------------------------
 source("0 - Preamble.R")
-source("X - NetworkExtinctionFuns.R")
+source("X - NetworkExtinctionFunsRewiring.R")
 source("0 - Data_Functions.R")
 
 message("########### STARTING ANALYSIS AND EXTINCTION SIMULATION ###########")
@@ -112,7 +112,7 @@ nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls),
                  length(AnalysisData_ls), parallel::detectCores())
 cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
 parallel::clusterExport(cl,
-                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", ".ExtinctionOrderEK", "ExtinctionOrderEK", "RandomExtinctionsEK", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp", "CutOffs"),
+                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp", "CutOffs", "ExtinctionOrder", "RandomExtinctions", "SimulateExtinctions"),
                         envir = environment()
 )
 clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.package))
@@ -131,14 +131,30 @@ PreExt_df$Simulation <- "Pre-Extinction"
 # POST-EXCTINCTION =========================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
-for(IS_iter in seq(0, 1, 0.05)){
-  Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", IS = IS_iter, CutOffs = CutOffs)
-  TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL", IS = IS_iter, CutOffs = CutOffs)
-  Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants", IS = IS_iter, CutOffs = CutOffs)
-  TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants", IS = IS_iter, CutOffs = CutOffs)
-  Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals", IS = IS_iter, CutOffs = CutOffs)
-  TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals", IS = IS_iter, CutOffs = CutOffs)
+for(Rewiring_Iter in seq(0, 1, 0.5)){
+  for(IS_iter in seq(0, 1, 0.05)){
+    Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
+                          IS = IS_iter, Rewiring = Rewiring_Iter,
+                          CutOffs = CutOffs)
+    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL", 
+    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                             CutOffs = CutOffs)
+    # Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
+    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                       CutOffs = CutOffs)
+    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
+    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                             CutOffs = CutOffs)
+    # Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
+    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                       CutOffs = CutOffs)
+    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
+    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                             CutOffs = CutOffs)
+  }
 }
+
+
 
 message("Sensitivity analysis for WHICH = 'Strength' in FUN_SimComp.")
 

@@ -133,18 +133,19 @@ FUN_Topo <- function(plot_df){
 FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of plant species names or animal species names
                         RunName = "ALL", # for file naming
                         IS = 0.3,
+                        Rewiring = FALSE,
                         CutOffs,
                         WHICH = c("Strength", "Climate", "IUCN")
 ){
   
-  print(paste0(RunName, "; IS = ", IS))
+  print(paste0(RunName, "; IS = ", IS, "; Rewiring = ", Rewiring))
   if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
-                                               IS, 
+                                               IS, "_", Rewiring,
                                                "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
                                                ".RData")))){
     print("Extinctions already simulated")
     load(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
-                                       IS, 
+                                       IS, "_", Rewiring,
                                        "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
                                        ".RData")))
     return(Sim_ls)
@@ -155,8 +156,27 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          # print(x)
                          # x <- names(AnalysisData_ls)[1]
                          x <- AnalysisData_ls[[x]]
+                         
+                         ## network object creation
                          net <- as.network(x$Adjacency, matrix.type = "adjacency", 
                                            ignore.eval=FALSE, names.eval='weight')
+                         
+                         ## distance matrix merging
+                         NA_UR <- matrix(NA, ncol = ncol(x$gow_animals), nrow = nrow(x$gow_plants))
+                         dimnames(NA_UR) <- list(rownames(x$gow_plants), colnames(x$gow_animals))
+                         NA_LL <- matrix(NA, ncol = ncol(x$gow_plants), nrow = nrow(x$gow_animals))
+                         dimnames(NA_LL) <- list(rownames(x$gow_animals), colnames(x$gow_plants))
+                         dist_mat <- cbind(rbind(x$gow_plants, NA_LL), rbind(NA_UR, x$gow_animals))
+                         
+                         ## Rewiring function
+                         if(Rewiring == 0){RewiringFun <- FALSE}else{
+                           diag(dist_mat) <- NA
+                           dist <- quantile(dist_mat, na.rm = TRUE, Rewiring) # rewiring distance distance quantile
+                           decay <- 1/as.numeric(dist) # assuming mean rewiring capability lies at dist_10
+                           RewiringFun <- function(x){1-pexp(x, rate = decay)} 
+                         }
+                         
+                         
                          
                          ## Subsetting proxies for bottom-up/top-down simulations
                          if(!is.null(PlantAnim)){
@@ -172,11 +192,14 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          primext_order <- match(primext_namesS, rownames(x$Adjacency))
                          CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA))
                          if("Strength" %in% WHICH){
-                           CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order, IS = IS)
+                           CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered",
+                                                                 Order = primext_order, IS = IS,
+                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat)
                            ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
                                                             SimNum = length(proxcen),
-                                                            IS = IS)
+                                                            IS = IS,
+                                                          Rewiring = RewiringFun, RewiringDist = dist_mat)
                            # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
                          }
                          
@@ -188,11 +211,13 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          if("Climate" %in% WHICH){
                            if(length(primext_namesC) != 0){
                              CustOrder_ExtC <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
-                                                                 IS = IS)
+                                                                 IS = IS,
+                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat)
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesC),
-                                                              IS = IS)
+                                                              IS = IS,
+                                                            Rewiring = RewiringFun, RewiringDist = dist_mat)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -205,11 +230,13 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          if("IUCN" %in% WHICH){
                            if(length(primext_namesI) != 0){
                              CustOrder_ExtI <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
-                                                                              IS = IS)
+                                                                              IS = IS,
+                                                                   Rewiring = RewiringFun, RewiringDist = dist_mat)
                              ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesI),
-                                                              IS = IS)
+                                                              IS = IS,
+                                                            Rewiring = RewiringFun, RewiringDist = dist_mat)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
                          }
@@ -231,7 +258,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                        })
     names(Sim_ls) <- names(AnalysisData_ls)
     save(Sim_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
-                                                      IS, 
+                                                      IS, "_", Rewiring,
                                                       "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
                                                       ".RData"))) 
     return(Sim_ls)
