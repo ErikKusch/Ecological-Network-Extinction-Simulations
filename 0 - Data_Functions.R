@@ -151,7 +151,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     return(Sim_ls)
   }else{
     Sim_ls <- pblapply(names(AnalysisData_ls), 
-                       # cl = cl,
+                       cl = cl,
                        function(x){
                          # print(x)
                          # x <- names(AnalysisData_ls)[1]
