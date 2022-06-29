@@ -131,7 +131,7 @@ PreExt_df$Simulation <- "Pre-Extinction"
 # POST-EXCTINCTION =========================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
-for(Rewiring_Iter in seq(0, 1, 0.5)){
+for(Rewiring_Iter in seq(0.5, 1, 0.05)){
   for(IS_iter in seq(0, 1, 0.05)){
     Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
                           IS = IS_iter, Rewiring = Rewiring_Iter,

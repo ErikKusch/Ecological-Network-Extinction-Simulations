@@ -151,7 +151,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     return(Sim_ls)
   }else{
     Sim_ls <- pblapply(names(AnalysisData_ls), 
-                       cl = cl,
+                       # cl = cl,
                        function(x){
                          # print(x)
                          # x <- names(AnalysisData_ls)[1]
@@ -169,10 +169,15 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          dist_mat <- cbind(rbind(x$gow_plants, NA_LL), rbind(NA_UR, x$gow_animals))
                          
                          ## Rewiring function
-                         if(Rewiring == 0){RewiringFun <- FALSE}else{
+                         if(Rewiring == 0){
+                           RewiringFun <- FALSE
+                           decay <- FALSE
+                         }else{
+                           # print(dim(dist_mat))
                            diag(dist_mat) <- NA
                            dist <- quantile(dist_mat, na.rm = TRUE, Rewiring) # rewiring distance distance quantile
                            decay <- 1/as.numeric(dist) # assuming mean rewiring capability lies at dist_10
+                           # print(decay)
                            RewiringFun <- function(x){1-pexp(x, rate = decay)} 
                          }
                          
@@ -192,12 +197,14 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          if("Strength" %in% WHICH){
                            CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered",
                                                                  Order = primext_order, IS = IS,
-                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat)
+                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat,
+                                                                 decay = decay)
                            ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
                                                             SimNum = length(proxcen),
                                                             IS = IS,
-                                                          Rewiring = RewiringFun, RewiringDist = dist_mat)
+                                                          Rewiring = RewiringFun, RewiringDist = dist_mat, 
+                                                          decay = decay)
                            # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
                          }
                          

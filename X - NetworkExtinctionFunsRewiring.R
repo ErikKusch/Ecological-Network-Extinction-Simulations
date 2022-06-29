@@ -10,7 +10,8 @@
 
 ExtinctionOrder <- function(Network, Order, IS = 0, 
                             Rewiring = NULL, RewiringDist = NULL,
-                            verbose = TRUE, clust.method = "cluster_infomap"){
+                            verbose = TRUE, clust.method = "cluster_infomap", 
+                            decay){
   ## Setting up Objects for function run
   Link_density <- Modularity <- Grado <- NULL
   Network <- .DataInit(x = Network)
@@ -180,7 +181,7 @@ ExtinctionOrder <- function(Network, Order, IS = 0,
     DF$Iso_nodes[i] <- sum(degree(Temp) == 0)
     
     ### rewiring 
-    accExt <- append(accExt, DF$Spp[1:i])
+    accExt <- unique(append(accExt, DF$Spp[1:i]))
     if(!isFALSE(Rewiring)){
       Rewiring_df <- data.frame(Direction = NA,
                                 Species = NA,
@@ -199,48 +200,48 @@ ExtinctionOrder <- function(Network, Order, IS = 0,
                               names = c(names(LostISCol), names(LostISRow))
         )
         Lost_df <- Lost_df[Lost_df$LostIS != 0, ]
-        for(Iter_LostIS in 1:nrow(Lost_df)){ ## looping over all species that were linked to the current primary extinction
-          # Iter_LostIS = 1
-          
-          
-          
-          LostPartnerSim <- eval(str2lang(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])]))(dist_mat[,LostPartner]) # probability of rewiring too each node in network given rewiring function and species similraity
-          RewiringCandidates <- LostPartnerSim[LostPartnerSim > 0.5 & names(LostPartnerSim) %in% get.vertex.attribute(Temp, "vertex.names")] # rewiring probability for nodes still in temporary network and having a higher rewiring probability than 0.5
-          RewiredPartner <- names(which.max(RewiringCandidates)) # most likely rewiring partner
-          if(!is.null(RewiredPartner)){ # if a rewired partner has been found
-            Rewiring_df <- rbind(Rewiring_df, 
-                                 data.frame(Direction = Direction,
-                                            Species = Lost_df$names[Iter_LostIS],
-                                            NewPartner = RewiredPartner,
-                                            LostPartner = LostPartner,
-                                            IS = Lost_df$LostIS[Iter_LostIS])
-            )
+        if(nrow(Lost_df)!=0){
+          for(Iter_LostIS in 1:nrow(Lost_df)){ ## looping over all species that were linked to the current primary extinction
+            # Iter_LostIS = 1
+            LostPartnerSim <- eval(str2lang(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])]))(RewiringDist[,LostPartner]) # probability of rewiring too each node in network given rewiring function and species similraity
+            RewiringCandidates <- LostPartnerSim[LostPartnerSim > 0.5 & names(LostPartnerSim) %in% get.vertex.attribute(Temp, "vertex.names")] # rewiring probability for nodes still in temporary network and having a higher rewiring probability than 0.5
+            RewiredPartner <- names(which.max(RewiringCandidates)) # most likely rewiring partner
+            if(!is.null(RewiredPartner)){ # if a rewired partner has been found
+              Rewiring_df <- rbind(Rewiring_df, 
+                                   data.frame(Direction = Lost_df$Direction[Iter_LostIS],
+                                              Species = Lost_df$names[Iter_LostIS],
+                                              NewPartner = RewiredPartner,
+                                              LostPartner = LostPartner,
+                                              IS = Lost_df$LostIS[Iter_LostIS])
+              )
+            }
           }
         }
       }
       
-      
-      #### shift interaction weights in Weight_mat
-      for(Iter_Rewiring in 1:nrow(Rewiring_df)){
-        # Iter_Rewiring = 1
-        ## assigning shifted interaction strength
-        ColSpec <- Rewiring_df[Iter_Rewiring,4-Rewiring_df[Iter_Rewiring,"Direction"]]
-        RowSpec <- Rewiring_df[Iter_Rewiring,1+Rewiring_df[Iter_Rewiring,"Direction"]]
-        Weight_mat[RowSpec, ColSpec] <- Weight_mat[RowSpec, ColSpec] + Rewiring_df[Iter_Rewiring,"IS"]
-        ## deleting shiften interaction strength
-        
-        ColLost <- ifelse(Rewiring_df[Iter_Rewiring, "Direction"] == 1, 
-                          Rewiring_df[Iter_Rewiring, "LostPartner"],
-                          Rewiring_df[Iter_Rewiring, "Species"])
-        RowLost <- ifelse(Rewiring_df[Iter_Rewiring, "Direction"] == 1, 
-                          Rewiring_df[Iter_Rewiring, "Species"],
-                          Rewiring_df[Iter_Rewiring, "LostPartner"])
-        Weight_mat[RowLost, ColLost] <- 0
+      if(nrow(Rewiring_df) != 0){
+        #### shift interaction weights in Weight_mat
+        for(Iter_Rewiring in 1:nrow(Rewiring_df)){
+          # Iter_Rewiring = 1
+          ## assigning shifted interaction strength
+          ColSpec <- Rewiring_df[Iter_Rewiring,4-Rewiring_df[Iter_Rewiring,"Direction"]]
+          RowSpec <- Rewiring_df[Iter_Rewiring,1+Rewiring_df[Iter_Rewiring,"Direction"]]
+          Weight_mat[RowSpec, ColSpec] <- Weight_mat[RowSpec, ColSpec] + Rewiring_df[Iter_Rewiring,"IS"]
+          ## deleting shiften interaction strength
+          
+          ColLost <- ifelse(Rewiring_df[Iter_Rewiring, "Direction"] == 1, 
+                            Rewiring_df[Iter_Rewiring, "LostPartner"],
+                            Rewiring_df[Iter_Rewiring, "Species"])
+          RowLost <- ifelse(Rewiring_df[Iter_Rewiring, "Direction"] == 1, 
+                            Rewiring_df[Iter_Rewiring, "Species"],
+                            Rewiring_df[Iter_Rewiring, "LostPartner"])
+          Weight_mat[RowLost, ColLost] <- 0
+        }
+        #### establishing rewired network and deleting primary extinction nodes
+        Network <- as.network(Weight_mat, matrix.type = "adjacency", ignore.eval=FALSE, names.eval='weight')
+        Temp <- Network
+        delete.vertices(Temp, unique(c(c(DF$Spp[1:i]),accExt)))
       }
-      #### establishing rewired network and deleting primary extinction nodes
-      Network <- as.network(Weight_mat, matrix.type = "adjacency", ignore.eval=FALSE, names.eval='weight')
-      Temp <- Network
-      delete.vertices(Temp, unique(c(c(DF$Spp[1:i]),accExt)))
     }
     
     #### Relative Interaction Strength loss
@@ -280,7 +281,7 @@ RandomExtinctions <- function(Network, nsim = 10, parallel = FALSE, ncores,
                               SimNum = NULL,
                               IS = 0, 
                               Rewiring = FALSE, RewiringDist = NULL,
-                              verbose = TRUE){
+                              verbose = TRUE, decay = decay){
   ## setting up objects
   NumExt <- sd <- AccSecExt <- AccSecExt_95CI <- AccSecExt_mean <- Lower <- NULL
   network <- .DataInit(x = Network)
@@ -297,7 +298,7 @@ RandomExtinctions <- function(Network, nsim = 10, parallel = FALSE, ncores,
       sims <- try(ExtinctionOrder(Network = network, Order = sample(1:network.size(network), size = SimNum), 
                                   IS = IS, 
                                   Rewiring = Rewiring, RewiringDist = RewiringDist,
-                                  verbose = FALSE), silent = TRUE)
+                                  verbose = FALSE, decay), silent = TRUE)
       try({sims$simulation <- i}, silent = TRUE)
       sims
     }
@@ -308,7 +309,7 @@ RandomExtinctions <- function(Network, nsim = 10, parallel = FALSE, ncores,
       sims[[i]] <- try(ExtinctionOrder(Network = network, Order = sample(1:network.size(network), size = SimNum), 
                                        IS = IS, 
                                        Rewiring = Rewiring, RewiringDist = RewiringDist,
-                                       verbose = FALSE), silent = TRUE)
+                                       verbose = FALSE, decay = decay), silent = TRUE)
       try({sims[[i]]$simulation <- i}, silent = TRUE)
       if(verbose){setTxtProgressBar(ProgBar, i)}
     }
@@ -349,7 +350,7 @@ SimulateExtinctions <- function(Network, Method, Order = NULL,
                                 clust.method = "cluster_infomap",
                                 IS = 0, 
                                 Rewiring = FALSE, RewiringDist = NULL,
-                                verbose = TRUE){
+                                verbose = TRUE, decay){
   Network <- .DataInit(x = Network)
   
   if(!is.null(Order)){Method <- "Ordered"}
@@ -362,11 +363,11 @@ SimulateExtinctions <- function(Network, Method, Order = NULL,
     Conected <- data.frame(ID = 1:network.size(Network), Grado = degree(edgelist, c("total")))
     Conected <- arrange(Conected, desc(Grado))
     DF <- ExtinctionOrder(Network = Network, Order = Conected$ID, clust.method = clust.method,
-                          IS = IS, Rewiring = Rewiring, RewiringDist = RewiringDist, verbose = verbose)
+                          IS = IS, Rewiring = Rewiring, RewiringDist = RewiringDist, verbose = verbose, decay = decay)
   }
   if(Method == "Ordered"){
     DF <- ExtinctionOrder(Network = Network, Order = Order, clust.method = clust.method,
-                          IS = IS, Rewiring = Rewiring, RewiringDist = RewiringDist, verbose = verbose)
+                          IS = IS, Rewiring = Rewiring, RewiringDist = RewiringDist, verbose = verbose, decay = decay)
   }
   
   return(DF)
