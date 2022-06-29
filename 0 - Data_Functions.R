@@ -176,8 +176,6 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            RewiringFun <- function(x){1-pexp(x, rate = decay)} 
                          }
                          
-                         
-                         
                          ## Subsetting proxies for bottom-up/top-down simulations
                          if(!is.null(PlantAnim)){
                            x$prox_centrality <- x$prox_centrality[names(x$prox_centrality) %in% PlantAnim]

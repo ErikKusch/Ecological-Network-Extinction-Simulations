@@ -73,8 +73,8 @@ ExtinctionOrder <- function(Network, Order, IS = 0,
       names(Rewiring) <- get.vertex.attribute(Network, "vertex.names")
     }
     # plot_seq <- seq(from = 0, to = max(RewiringDist[RewiringDist != 0], na.rm = TRUE), length = 1e3)
-    # plot(plot_seq, 
-    #      eval(str2lang(Rewiring[1]))(x)
+    # plot(plot_seq,
+    #      eval(str2lang(Rewiring[1]))(plot_seq)
     #      )
   }
   
@@ -192,26 +192,28 @@ ExtinctionOrder <- function(Network, Order, IS = 0,
       for(Iter_PrimaryExt in 1:length(accExt)){
         # Iter_PrimaryExt = 1
         LostPartner <- get.vertex.attribute(Network, "vertex.names")[accExt[Iter_PrimaryExt]] # name of primary extinction species
-        LostIS <- Weight_mat[, LostPartner] # lost interaction strength with nodes now slated for secondary extinction
-        Direction <- 1 # identify column-driven loss
-        if(sum(abs(LostIS))==0){# if the primary species is not an animal, LostIS will be filled with 0s, so we need to look for LosTIS in other orientiation in Weight_mat
-          LostIS <- Weight_mat[LostPartner, ]
-          Direction <- 2 # identify row-driven loss
-        } 
-        
-        
-        for(Iter_LostIS in 1:length(LostIS)){ ## looping over all species that were linked to the current primary extinction
+        LostISCol <- Weight_mat[, LostPartner] # lost interaction strength with nodes now slated for secondary extinction
+        LostISRow <- Weight_mat[LostPartner, ]
+        Lost_df <- data.frame(LostIS = c(LostISCol, LostISRow),
+                              Direction = rep(c(1,2), c(length(LostISCol), length(LostISRow))),
+                              names = c(names(LostISCol), names(LostISRow))
+        )
+        Lost_df <- Lost_df[Lost_df$LostIS != 0, ]
+        for(Iter_LostIS in 1:nrow(Lost_df)){ ## looping over all species that were linked to the current primary extinction
           # Iter_LostIS = 1
-          LostPartnerSim <- eval(str2lang(Rewiring[Iter_LostIS]))(dist_mat[,LostPartner]) # probability of rewiring too each node in network given rewiring function and species similraity
+          
+          
+          
+          LostPartnerSim <- eval(str2lang(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])]))(dist_mat[,LostPartner]) # probability of rewiring too each node in network given rewiring function and species similraity
           RewiringCandidates <- LostPartnerSim[LostPartnerSim > 0.5 & names(LostPartnerSim) %in% get.vertex.attribute(Temp, "vertex.names")] # rewiring probability for nodes still in temporary network and having a higher rewiring probability than 0.5
           RewiredPartner <- names(which.max(RewiringCandidates)) # most likely rewiring partner
           if(!is.null(RewiredPartner)){ # if a rewired partner has been found
             Rewiring_df <- rbind(Rewiring_df, 
                                  data.frame(Direction = Direction,
-                                            Species = names(LostIS[Iter_LostIS]),
+                                            Species = Lost_df$names[Iter_LostIS],
                                             NewPartner = RewiredPartner,
                                             LostPartner = LostPartner,
-                                            IS = LostIS[Iter_LostIS])
+                                            IS = Lost_df$LostIS[Iter_LostIS])
             )
           }
         }
