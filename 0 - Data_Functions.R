@@ -217,12 +217,14 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            if(length(primext_namesC) != 0){
                              CustOrder_ExtC <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                  IS = IS,
-                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat)
+                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat, 
+                                                                 decay = decay)
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesC),
                                                               IS = IS,
-                                                            Rewiring = RewiringFun, RewiringDist = dist_mat)
+                                                            Rewiring = RewiringFun, RewiringDist = dist_mat, 
+                                                            decay = decay)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -236,12 +238,14 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            if(length(primext_namesI) != 0){
                              CustOrder_ExtI <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                               IS = IS,
-                                                                   Rewiring = RewiringFun, RewiringDist = dist_mat)
+                                                                   Rewiring = RewiringFun, RewiringDist = dist_mat, 
+                                                                   decay = decay)
                              ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesI),
                                                               IS = IS,
-                                                            Rewiring = RewiringFun, RewiringDist = dist_mat)
+                                                            Rewiring = RewiringFun, RewiringDist = dist_mat, 
+                                                            decay = decay)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
                          }
