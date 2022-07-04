@@ -539,13 +539,13 @@ if(file.exists(file.path(Dir.Data, "Traits.RData"))){
   load(file.path(Dir.Data, "Traits.RData"))
 }else{
   print("Extracting traits")
-  colnames(int.set)[5:29]
   traits_df <- int.set[int.set$animal.phylo.id %in% animals_spec & int.set$plant.phylo.id %in% plants_spec, ]
-  plant_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$plant.phylo.id), FUN=mean)
+  colnames(traits_df)
+  plant_means <- aggregate(traits_df[22:29], by=list(Species=traits_df$plant.phylo.id), FUN=mean)
   plants_gowdis <- gowdis(plant_means)
   plants_gowdis <- as.matrix(plants_gowdis)
   dimnames(plants_gowdis) <- list(plant_means$Species, plant_means$Species)
-  animal_means <- aggregate(traits_df[18:25], by=list(Species=traits_df$animal.phylo.id), FUN=mean)
+  animal_means <- aggregate(traits_df[7:15], by=list(Species=traits_df$animal.phylo.id), FUN=mean)
   animals_gowdis <- gowdis(animal_means)
   animals_gowdis <- as.matrix(animals_gowdis)
   dimnames(animals_gowdis) <- list(animal_means$Species, animal_means$Species)
