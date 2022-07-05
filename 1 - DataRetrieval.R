@@ -732,5 +732,5 @@ if(length(IUCN_spec) > 0){
 }
 
 # SAVING ALL DATA AS ONE OBJECT ============================================
-save(Prox.Climate_ls, Prox.IUCN_df, Prox.Centrality_ls, networks_df, List_ls, traits_df, animals_gowdis, plants_gowdis,
+save(Prox.Climate_ls, Prox.IUCN_df, Prox.Centrality_ls, networks_df, List_ls, traits_df, animals_gowdis, plants_gowdis, animal_means, plant_means,
      file = file.path(Dir.Data, "AnalysesData.RData"))

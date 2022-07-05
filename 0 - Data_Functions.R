@@ -135,10 +135,12 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                         IS = 0.3,
                         Rewiring = FALSE,
                         CutOffs,
+                        PotPartners, 
+                        Traits,
                         WHICH = c("Strength", "Climate", "IUCN")
 ){
   
-  print(paste0(RunName, "; IS = ", IS, "; Rewiring = ", Rewiring))
+  print(paste0(RunName, "; IS (% of IS required for continued existence) = ", IS, "; Rewiring Cutoff (probability of rewiring required) = ", Rewiring))
   if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
                                                IS, "_", Rewiring,
                                                "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
@@ -152,10 +154,11 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
   }else{
     Sim_ls <- pblapply(names(AnalysisData_ls), 
                        cl = cl,
-                       function(x){
+                       function(y){
                          # print(x)
-                         # x <- names(AnalysisData_ls)[1]
-                         x <- AnalysisData_ls[[x]]
+                         # y <- names(AnalysisData_ls)[1]
+                         print(y)
+                         x <- AnalysisData_ls[[y]]
                          
                          ## network object creation
                          net <- as.network(x$Adjacency, matrix.type = "adjacency", 
@@ -181,6 +184,46 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            RewiringFun <- function(x){1-pexp(x, rate = decay)} 
                          }
                          
+                         ## Rewiring Probabilities according to PotPartners
+                         ### Matrix for storing rewiring probabilities
+                         prob_mat <- dist_mat 
+                         prob_mat[!is.na(prob_mat)] <- NA
+                         ### identify relevant RF models for this network
+                         specs <- get.vertex.attribute(net, "vertex.names") 
+                         RewPartners_ls <- PotPartners[specs]
+                         ### identify relevant trait subset
+                         yTraits <- Traits[Traits$net.id == y, ]
+                         anim_trait <- yTraits[!duplicated(yTraits$animal.phylo.id), ]
+                         anim_trait$sp <- anim_trait$animal.phylo.id
+                         plant_trait <- yTraits[!duplicated(yTraits$plant.phylo.id), ]
+                         plant_trait$sp <- plant_trait$plant.phylo.id
+                         ### populate probability matrix
+                         for(v in colnames(prob_mat)){
+                           if(v %in% colnames(animals_gowdis)){
+                             calc_df <- plant_trait
+                           }else{
+                             calc_df <- anim_trait
+                           }
+                           if(class(RewPartners_ls[[v]]) == "randomForest"){
+                             Probs <- predict(RewPartners_ls[[v]], calc_df)
+                             names(Probs) <- calc_df$sp
+                             Probs <- Probs[names(Probs) %in% rownames(prob_mat)]
+                             prob_mat[names(Probs),v] <- Probs    
+                           }else{
+                             if(RewPartners_ls[[v]] == 0){
+                               Probs <- rep(0, nrow(calc_df))
+                               names(Probs) <- calc_df$sp
+                               Probs <- Probs[names(Probs) %in% rownames(prob_mat)]
+                               prob_mat[names(Probs),v] <- Probs    
+                             }else{
+                               Probs <- rep(1, nrow(calc_df))
+                               names(Probs) <- calc_df$sp
+                               Probs <- Probs[names(Probs) %in% rownames(prob_mat)]
+                               prob_mat[names(Probs),v] <- Probs    
+                             } 
+                           }
+                         }
+                         
                          ## Subsetting proxies for bottom-up/top-down simulations
                          if(!is.null(PlantAnim)){
                            x$prox_centrality <- x$prox_centrality[names(x$prox_centrality) %in% PlantAnim]
@@ -197,14 +240,26 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          if("Strength" %in% WHICH){
                            CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered",
                                                                  Order = primext_order, IS = IS,
-                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat,
-                                                                 decay = decay)
+                                                                 NetworkType = "Mutualistic",
+                                                                 ## PDF-driven rewiring block
+                                                                 Rewiring = function(x){x},
+                                                                 # decay = Rewiring
+                                                                 # RewiringDist = dist_mat, #
+                                                                 ### Probability matrix-driven block
+                                                                 RewiringDist = prob_mat, # 
+                                                                 RewiringProb = Rewiring
+                                                                 )
                            ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
                                                             SimNum = length(proxcen),
                                                             IS = IS,
-                                                          Rewiring = RewiringFun, RewiringDist = dist_mat, 
-                                                          decay = decay)
+                                                          ## PDF-driven rewiring block
+                                                          Rewiring = function(x){x},
+                                                          # decay = Rewiring
+                                                          # RewiringDist = dist_mat, #
+                                                          ### Probability matrix-driven block
+                                                          RewiringDist = prob_mat, # 
+                                                          RewiringProb = Rewiring)
                            # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
                          }
                          
@@ -215,16 +270,30 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
                          if("Climate" %in% WHICH){
                            if(length(primext_namesC) != 0){
-                             CustOrder_ExtC <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
+                             CustOrder_ExtC <- SimulateExtinctions(Network = net, 
+                                                                   Method = "Ordered", 
+                                                                   Order = primext_order,
                                                                  IS = IS,
-                                                                 Rewiring = RewiringFun, RewiringDist = dist_mat, 
-                                                                 decay = decay)
+                                                                 ## PDF-driven rewiring block
+                                                                 Rewiring = function(x){x},
+                                                                 # decay = Rewiring
+                                                                 # RewiringDist = dist_mat, #
+                                                                 ### Probability matrix-driven block
+                                                                 RewiringDist = prob_mat, # 
+                                                                 RewiringProb = Rewiring
+                             )
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesC),
                                                               IS = IS,
-                                                            Rewiring = RewiringFun, RewiringDist = dist_mat, 
-                                                            decay = decay)
+                                                            ## PDF-driven rewiring block
+                                                            Rewiring = function(x){x},
+                                                            # decay = Rewiring
+                                                            # RewiringDist = dist_mat, #
+                                                            ### Probability matrix-driven block
+                                                            RewiringDist = prob_mat, # 
+                                                            RewiringProb = Rewiring
+                             )
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -238,14 +307,26 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            if(length(primext_namesI) != 0){
                              CustOrder_ExtI <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
                                                                               IS = IS,
-                                                                   Rewiring = RewiringFun, RewiringDist = dist_mat, 
-                                                                   decay = decay)
+                                                                   ## PDF-driven rewiring block
+                                                                   Rewiring = function(x){x},
+                                                                   # decay = Rewiring
+                                                                   # RewiringDist = dist_mat, #
+                                                                   ### Probability matrix-driven block
+                                                                   RewiringDist = prob_mat, # 
+                                                                   RewiringProb = Rewiring
+                             )
                              ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesI),
                                                               IS = IS,
-                                                            Rewiring = RewiringFun, RewiringDist = dist_mat, 
-                                                            decay = decay)
+                                                            ## PDF-driven rewiring block
+                                                            Rewiring = function(x){x},
+                                                            # decay = Rewiring
+                                                            # RewiringDist = dist_mat, #
+                                                            ### Probability matrix-driven block
+                                                            RewiringDist = prob_mat, # 
+                                                            RewiringProb = Rewiring
+                             )
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
                          }

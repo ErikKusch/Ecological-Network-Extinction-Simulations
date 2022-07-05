@@ -59,7 +59,8 @@ package_vec <- c(
   "ggpubr", # for t-test comparisons in ggplots
   "NetworkExtinction", # for network extinction simulations
   "viridis", # for extra colours in ggplot
-  "ggvenn" # for venn diagrams
+  "ggvenn", # for venn diagrams
+  "randomForest" # for classification of associations potential
 )
 sapply(package_vec, install.load.package)
 
@@ -113,3 +114,11 @@ objName <- function(z){
   deparse(substitute(z))
 }
 
+# add a list of matrices together
+add_matrices <- function(a) {
+  cols <- sort(unique(unlist(lapply(a, colnames))))
+  rows <- sort(unique(unlist(lapply(a, rownames))))
+  out <- array(0, dim = c(length(rows), length(cols)), dimnames = list(rows,cols))
+  for (m in a) out[rownames(m), colnames(m)] <- out[rownames(m), colnames(m)] + m
+  out
+}

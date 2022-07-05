@@ -99,10 +99,68 @@ ErrorCheck <- rowSums(
 )
 AnalysisData_ls <- AnalysisData_ls[ErrorCheck == 2]
 
-# PARALLEL EXECTIONS =======================================================
+# POTENTIAL ASSOCIATIONS ===================================================
+message("### IDENTIFYING POTENTIAL REWIRING PARTNERS ###")
 plants_sp <- rownames(plants_gowdis)
 animals_sp <- rownames(animals_gowdis)
 
+## Metaweb -----------------------------------------------------------------
+# metaweb_mat <- add_matrices(lapply(lapply(AnalysisData_ls, "[[", "Adjacency"), function(x){x > 0}))
+# metaweb_mat <- metaweb_mat[ , colnames(metaweb_mat) %in% colnames(animals_gowdis)]
+# metaweb_mat <- metaweb_mat[rownames(metaweb_mat) %in% rownames(plants_gowdis), ]
+meta_df <- traits_df
+meta_df$value <- meta_df$value>0
+meta_df <- meta_df[meta_df$animal.phylo.id %in% animals_sp | meta_df$plant.phylo.id %in% plants_sp, ]
+
+## Potential Partner Identification ----------------------------------------
+options(warn=-1)
+### Animals ----------------------------
+print("Animals")
+RewClass_Animals <- pblapply(animals_sp, function(x){
+  # message(x)
+  sub_df <- meta_df[meta_df$animal.phylo.id == x, ]
+  reg_df <- sub_df[,c(4, 22:29)] # value, and plant traits
+  if(sum(reg_df$value) == 0 | nrow(reg_df) == 1){
+    0
+  }else{
+    if(sum(reg_df$value) == nrow(reg_df)){
+      1
+    }else{
+      invisible(capture.output(
+        modRF <- tuneRF(y = reg_df[,1], x = reg_df[,-1], plot = FALSE, doBest = TRUE, trace = FALSE, do.trace = FALSE)
+      ))
+      modRF
+    }
+  }
+})
+names(RewClass_Animals) <- animals_sp
+# randomForest:::predict.randomForest(rf_mod, meta_df)
+
+### Plants ----------------------------
+print("Plants")
+RewClass_Plants <- pblapply(plants_sp, function(x){
+  sub_df <- meta_df[meta_df$plant.phylo.id == x, ]
+  reg_df <- sub_df[,c(4, 2, 5:15)] # value, and plant traits
+  if(sum(reg_df$value) == 0 | nrow(reg_df) == 1){
+    0
+  }else{
+    if(sum(reg_df$value) == nrow(reg_df)){
+      1
+    }else{
+      invisible(capture.output(
+        modRF <- tuneRF(y = reg_df[,1], x = reg_df[,-1], plot = FALSE, doBest = TRUE, trace = FALSE, do.trace = FALSE)
+        ))
+      modRF
+    }
+  }
+})
+names(RewClass_Plants) <- plants_sp
+
+### Full List of Models ---------------
+RewClass_ls <- c(RewClass_Animals, RewClass_Plants)
+options(warn=0)
+
+# PARALLEL EXECTIONS =======================================================
 CutOffs <- list(Strength = 0.75,
                 Climate = 2,
                 IUCN = 5)
@@ -112,7 +170,7 @@ nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls),
                  length(AnalysisData_ls), parallel::detectCores())
 cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
 parallel::clusterExport(cl,
-                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp", "CutOffs", "ExtinctionOrder", "RandomExtinctions", "SimulateExtinctions"),
+                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp", "CutOffs", "ExtinctionOrder", "RandomExtinctions", "SimulateExtinctions", "RewClass_ls", "meta_df"),
                         envir = environment()
 )
 clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.package))
@@ -131,11 +189,14 @@ PreExt_df$Simulation <- "Pre-Extinction"
 # POST-EXCTINCTION =========================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
+# Rewiring_Iter <- 0.05
+# IS_iter <- 0.5
+
 for(Rewiring_Iter in seq(0, 1, 0.05)){
   for(IS_iter in seq(0, 1, 0.05)){
     Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
                           IS = IS_iter, Rewiring = Rewiring_Iter,
-                          CutOffs = CutOffs)
+                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
     # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL", 
     #                             IS = IS_iter, Rewiring = Rewiring_Iter,
     #                             CutOffs = CutOffs)
