@@ -14,7 +14,7 @@ set.seed(42)
 
 ## Sourcing ----------------------------------------------------------------
 source("0 - Preamble.R")
-source("X - NetworkExtinctionFunsRewiring.R")
+# source("X - NetworkExtinctionFunsRewiring.R")
 source("0 - Data_Functions.R")
 
 message("########### STARTING ANALYSIS AND EXTINCTION SIMULATION ###########")
@@ -166,7 +166,7 @@ CutOffs <- list(Strength = 0.75,
                 IUCN = 5)
 
 message("### REGISTERING CLUSTER")
-nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls), 
+nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls),
                  length(AnalysisData_ls), parallel::detectCores())
 cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
 parallel::clusterExport(cl,
@@ -178,7 +178,7 @@ clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.pack
 # PRE-EXCTINCTION ==========================================================
 message("### PRE-EXTINCTION ###")
 print("Network Topologies")
-PreExt_df <- pblapply(lapply(AnalysisData_ls, "[[", "Adjacency"), 
+PreExt_df <- pblapply(lapply(AnalysisData_ls, "[[", "Adjacency"),
                       cl = cl,
                       FUN = FUN_Topo)
 PreExt_df <- do.call(rbind, PreExt_df)

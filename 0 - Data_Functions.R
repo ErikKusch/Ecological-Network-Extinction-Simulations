@@ -153,11 +153,11 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     return(Sim_ls)
   }else{
     Sim_ls <- pblapply(names(AnalysisData_ls), 
-                       cl = cl,
+                       # cl = cl,
                        function(y){
                          # print(x)
-                         # y <- names(AnalysisData_ls)[1]
-                         print(y)
+                         # y <- names(AnalysisData_ls)[2]
+                         message(y)
                          x <- AnalysisData_ls[[y]]
                          
                          ## network object creation
@@ -238,8 +238,11 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          primext_order <- match(primext_namesS, rownames(x$Adjacency))
                          CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA))
                          if("Strength" %in% WHICH){
-                           CustOrder_ExtS <- SimulateExtinctions(Network = net, Method = "Ordered",
-                                                                 Order = primext_order, IS = IS,
+                           print("Strength")
+                           CustOrder_ExtS <- SimulateExtinctions(Network = net, 
+                                                                 Method = "Ordered",
+                                                                 Order = primext_order, 
+                                                                 IS = IS,
                                                                  NetworkType = "Mutualistic",
                                                                  ## PDF-driven rewiring block
                                                                  Rewiring = function(x){x},
@@ -253,6 +256,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
                                                             SimNum = length(proxcen),
                                                             IS = IS,
+                                                          NetworkType = "Mutualistic",
                                                           ## PDF-driven rewiring block
                                                           Rewiring = function(x){x},
                                                           # decay = Rewiring
@@ -270,10 +274,12 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
                          if("Climate" %in% WHICH){
                            if(length(primext_namesC) != 0){
+                             print("Climate")
                              CustOrder_ExtC <- SimulateExtinctions(Network = net, 
                                                                    Method = "Ordered", 
                                                                    Order = primext_order,
                                                                  IS = IS,
+                                                                 NetworkType = "Mutualistic",
                                                                  ## PDF-driven rewiring block
                                                                  Rewiring = function(x){x},
                                                                  # decay = Rewiring
@@ -286,6 +292,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesC),
                                                               IS = IS,
+                                                            NetworkType = "Mutualistic",
                                                             ## PDF-driven rewiring block
                                                             Rewiring = function(x){x},
                                                             # decay = Rewiring
@@ -304,9 +311,13 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          primext_order <- match(primext_namesI, rownames(x$Adjacency))
                          CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
                          if("IUCN" %in% WHICH){
+                           print("IUCN")
                            if(length(primext_namesI) != 0){
-                             CustOrder_ExtI <- SimulateExtinctions(Network = net, Method = "Ordered", Order = primext_order,
-                                                                              IS = IS,
+                             CustOrder_ExtI <- SimulateExtinctions(Network = net, 
+                                                                   Method = "Ordered", 
+                                                                   Order = primext_order,
+                                                                   IS = IS,
+                                                                   NetworkType = "Mutualistic",
                                                                    ## PDF-driven rewiring block
                                                                    Rewiring = function(x){x},
                                                                    # decay = Rewiring
@@ -319,6 +330,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                               parallel = FALSE, ncores = parallel::detectCores(), 
                                                               SimNum = length(primext_namesI),
                                                               IS = IS,
+                                                            NetworkType = "Mutualistic",
                                                             ## PDF-driven rewiring block
                                                             Rewiring = function(x){x},
                                                             # decay = Rewiring
