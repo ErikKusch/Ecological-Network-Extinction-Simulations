@@ -14,7 +14,7 @@ set.seed(42)
 
 ## Sourcing ----------------------------------------------------------------
 source("0 - Preamble.R")
-# source("X - NetworkExtinctionFunsRewiring.R")
+source("X - NetworkExtinctionFunsRewiring.R")
 source("0 - Data_Functions.R")
 
 message("########### STARTING ANALYSIS AND EXTINCTION SIMULATION ###########")
@@ -170,7 +170,11 @@ nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls),
                  length(AnalysisData_ls), parallel::detectCores())
 cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
 parallel::clusterExport(cl,
-                        varlist = c('FUN_Topo', "animals_gowdis", "plants_gowdis", "AnalysisData_ls", "install.load.package", "package_vec", ".DataInit", "plants_sp", "animals_sp", "CutOffs", "ExtinctionOrder", "RandomExtinctions", "SimulateExtinctions", "RewClass_ls", "meta_df"),
+                        varlist = c('FUN_Topo', "CutOffs",  "AnalysisData_ls", 
+                                    "animals_gowdis", "plants_gowdis", "plants_sp", "animals_sp", 
+                                    "RewClass_ls", "meta_df",
+                                    "install.load.package", "package_vec", 
+                                    ".DataInit", "SimulateExtinctions", "RandomExtinctions", "ExtinctionOrder"),
                         envir = environment()
 )
 clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.package))
@@ -197,7 +201,7 @@ for(Rewiring_Iter in seq(0, 1, 0.05)){
     Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
                           IS = IS_iter, Rewiring = Rewiring_Iter,
                           CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL", 
+    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
     #                             IS = IS_iter, Rewiring = Rewiring_Iter,
     #                             CutOffs = CutOffs)
     # Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",

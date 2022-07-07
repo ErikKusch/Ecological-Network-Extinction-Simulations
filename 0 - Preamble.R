@@ -57,7 +57,7 @@ package_vec <- c(
   "gridExtra", # for table grobs as legends in plots
   "dplyr", # for data cleaning
   "ggpubr", # for t-test comparisons in ggplots
-  "NetworkExtinction", # for network extinction simulations
+  # "NetworkExtinction", # for network extinction simulations
   "viridis", # for extra colours in ggplot
   "ggvenn", # for venn diagrams
   "randomForest" # for classification of associations potential
