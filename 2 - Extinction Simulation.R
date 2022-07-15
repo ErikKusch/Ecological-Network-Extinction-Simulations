@@ -196,41 +196,42 @@ message("### EXTINCTION SIMULATION(S) ###")
 # Rewiring_Iter <- 0.05
 # IS_iter <- 0.5
 
+## Extinction Simulations --------------------------------------------------
 for(Rewiring_Iter in seq(0, 1, 0.05)){
   for(IS_iter in seq(0, 1, 0.05)){
     Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
                           IS = IS_iter, Rewiring = Rewiring_Iter,
                           CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
-    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                             CutOffs = CutOffs)
-    # Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
-    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                       CutOffs = CutOffs)
-    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
-    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                             CutOffs = CutOffs)
-    # Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
-    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                       CutOffs = CutOffs)
-    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
-    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                             CutOffs = CutOffs)
+    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
+                                IS = IS_iter, Rewiring = Rewiring_Iter,
+                                CutOffs = CutOffs)
+    Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
+                          IS = IS_iter, Rewiring = Rewiring_Iter,
+                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
+                                IS = IS_iter, Rewiring = Rewiring_Iter,
+                                CutOffs = CutOffs)
+    Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
+                          IS = IS_iter, Rewiring = Rewiring_Iter,
+                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
+                                IS = IS_iter, Rewiring = Rewiring_Iter,
+                                CutOffs = CutOffs)
   }
 }
 
-
-
+## Sensitivity Analysis ----------------------------------------------------
 message("Sensitivity analysis for WHICH = 'Strength' in FUN_SimComp.")
 
-# VISUALISATION ============================================================
-message("### RESULT VISUALISATION ###")
-pal_lm <- c("#016392", "#E19825", "#3E8853")
-
+## Topology Loading and Storing as one object ------------------------------
 ## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
 PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs, Pre = PreExt_df)
 PlotTopoPlants_ls <- loadTopo(RunName = "Plants", CutOffs = CutOffs, Pre = PreExt_df)
 PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs, Pre = PreExt_df)
+
+# VISUALISATION ============================================================
+message("### RESULT VISUALISATION ###")
+pal_lm <- c("#016392", "#E19825", "#3E8853")
 
 ## Venn-Diagram of Proxy Agreement -----------------------------------------
 print("Extinction Proxy Overlap ---")

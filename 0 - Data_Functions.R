@@ -368,13 +368,15 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
 }
 
 # Network Topology Comparison ==============================================
-FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, CutOffs){
+FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
   
-  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, 
+  if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", 
+                                               IS, "_", Rewiring,
                                                "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
                                                ".RData")))){
     print("Topology already extracted")
-    load(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, 
+    load(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", 
+                                       IS, "_", Rewiring,
                                        "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
                                        ".RData")))
     return(Save_ls)
@@ -438,7 +440,8 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, CutOffs){
     Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df, Eff_df = Eff_df)
     
     ## Data Return
-    save(Save_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", IS, 
+    save(Save_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", 
+                                                       IS, "_", Rewiring,
                                                        "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 
                                                        ".RData")))
     return(Save_ls)
