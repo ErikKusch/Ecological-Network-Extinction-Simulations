@@ -205,18 +205,18 @@ for(Rewiring_Iter in seq(0, 1, 0.05)){
     TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
                                 IS = IS_iter, Rewiring = Rewiring_Iter,
                                 CutOffs = CutOffs)
-    Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
-                          IS = IS_iter, Rewiring = Rewiring_Iter,
-                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
-                                IS = IS_iter, Rewiring = Rewiring_Iter,
-                                CutOffs = CutOffs)
-    Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
-                          IS = IS_iter, Rewiring = Rewiring_Iter,
-                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
-                                IS = IS_iter, Rewiring = Rewiring_Iter,
-                                CutOffs = CutOffs)
+    # Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
+    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
+    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                             CutOffs = CutOffs)
+    # Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
+    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
+    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+    #                             CutOffs = CutOffs)
   }
 }
 
@@ -236,7 +236,7 @@ pal_lm <- c("#016392", "#E19825", "#3E8853")
 ## Venn-Diagram of Proxy Agreement -----------------------------------------
 print("Extinction Proxy Overlap ---")
 for(RunName in c("ALL", "Plants", "Animals")){
-  ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 0, CutOffs = CutOffs)
+  ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 0, Rewiring = 0, CutOffs = CutOffs)
   
   ## number of primary extinctions per proxy
   Clim_ls <- lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed")
@@ -280,9 +280,79 @@ for(RunName in c("ALL", "Plants", "Animals")){
   ggsave(filename = file.path(Dir.Exports, paste0("PLOT_Proxy", RunName,".png")), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
 }
 
-## Effects of each extinction proxy ----------------------------------------
+## Grid-Based Visualisations -----------------------------------------------
+
+### Relative Changes ----
+Change_df <- PlotTopoAll_ls$Change
 TopoPlots <- c("n_species", "n_animals", "n_plants")
-ggplot(PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,],
+Change_df <- Change_df[Change_df$Topology %in% TopoPlots, ]
+
+plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = Change_df)
+sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = Change_df)
+
+pred_gg <- ggplot(plot_df, aes(x = RE, y = IS)) +
+  geom_tile(aes(fill = RelChange)) +
+  coord_fixed() + 
+  facet_wrap(~Topology+Proxy) + 
+  scale_fill_viridis("Mean", option = "B", direction = -1)
+
+sd_gg <- ggplot(sd_df, aes(x = RE, y = IS)) +
+  geom_tile(aes(fill = RelChange)) +
+  coord_fixed() +
+  facet_wrap(~Topology+Proxy) + 
+  scale_fill_viridis("SD", option = "D")
+
+print(plot_grid(pred_gg, sd_gg, nrow = 2))
+
+### Effect Sizes ----
+EffectSize_df <- PlotTopoAll_ls$EffectSize
+TopoPlots <- c("n_species", "n_animals", "n_plants")
+EffectSize_df <- stats::reshape(data = EffectSize_df, 
+               times = colnames(EffectSize_df)[1:(ncol(EffectSize_df)-4)],
+               varying = list(colnames(EffectSize_df)[1:(ncol(EffectSize_df)-4)]),
+               timevar = "Topology",
+               direction = "long")
+EffectSize_df <- EffectSize_df[EffectSize_df$Topology %in% TopoPlots, ]
+colnames(EffectSize_df)[ncol(EffectSize_df)-1] <- "EffectSize"
+EffectSize_df <- EffectSize_df[which(abs(EffectSize_df$EffectSize) != Inf), ]
+EffectSize_df <- EffectSize_df[which(!is.na(EffectSize_df$EffectSize)), ]
+
+plot_df <- aggregate(EffectSize ~ Pry+Topology+IS+RE, FUN = mean, data = EffectSize_df)
+sd_df <- aggregate(EffectSize ~ Pry+Topology+IS+RE, FUN = sd, data = EffectSize_df)
+
+Upper <- plot_df$EffectSize + sd_df$EffectSize*2
+Lower <- plot_df$EffectSize - sd_df$EffectSize*2
+plot_df$Sig <- ifelse(abs(sign(Upper) + sign(Lower)) == 2, TRUE, FALSE)
+
+# pred_gg <- 
+  ggplot(plot_df, aes(x = RE, y = IS)) +
+    geom_tile(aes(fill = EffectSize)) +
+    coord_fixed() + 
+    facet_wrap(~Topology+Pry) + 
+    scale_fill_gradient2(high = "darkgreen", low = "darkred") +
+    geom_point(aes(shape = Sig), size = 2) +
+    scale_shape_manual(values=c(32, 15), na.translate = FALSE, name = "Significance") +
+    guides(shape = FALSE)
+  
+  
+stop("significance of effect size?")
+
+# sd_gg <- ggplot(sd_df[sd_df$Topology %in% TopoPlots,], aes(x = RE, y = IS)) +
+#   geom_tile(aes(fill = EffectSize)) +
+#   coord_fixed() +
+#   facet_wrap(~Topology+Pry) + 
+#   scale_fill_viridis("SD", option = "D")
+# 
+# print(plot_grid(pred_gg, sd_gg, nrow = 2))
+
+## Effects of each extinction proxy ----------------------------------------
+
+stop("increase this RE selection to 1 when trying to recreate initial plots")
+Plot_df <- PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$RE == 0.4, ]
+
+
+TopoPlots <- c("n_species", "n_animals", "n_plants")
+ggplot(Plot_df[Plot_df$Topology %in% TopoPlots,],
        aes(x = IS, y = RelChange, col = Proxy)) + 
   geom_point(alpha = 0.4) + 
   geom_smooth() + 
@@ -292,7 +362,7 @@ ggplot(PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,],
   labs(y = "Relative Change in Network Topology (Pre- vs Post-Extinction)",
        x = "Network Dependency")
 
-ggplot(PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,],
+ggplot(Plot_df[Plot_df$Topology %in% TopoPlots,],
        aes(x = factor(IS), y = RelChange, col = Proxy)) + 
   geom_boxplot() + 
   facet_wrap(~Topology + Proxy, scales = "free", ncol = 3) + 
@@ -301,21 +371,21 @@ ggplot(PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,],
   labs(y = "Relative Change in Network Topology (Pre- vs Post-Extinction)",
        x = "Network Dependency")
 
-Compare_df <- PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$Topology %in% TopoPlots,]
+Compare_df <- Plot_df[Plot_df$Topology %in% TopoPlots,]
 Clim_df <- Compare_df[Compare_df$Proxy == "Climate", ]
 IUCN_df <- Compare_df[Compare_df$Proxy == "IUCN", ]
 
-Plot_df <- Clim_df[,1:4]
+Plot_df <- Clim_df[,1:5]
 Plot_df <- cbind(Plot_df, Clim_df$RelChange - IUCN_df$RelChange)
 colnames(Plot_df)[ncol(Plot_df)] <- "Difference"
 
 ggplot(Plot_df,
-       aes(x = factor(IS), y = Difference)) + 
-  geom_hline(yintercept = 0) + 
+       aes(x = factor(IS), y = Difference)) +
+  geom_hline(yintercept = 0) +
   geom_boxplot() +
-  facet_wrap(~Topology, scales = "free", ncol = 1) + 
-  scale_color_manual(values = pal_lm) + 
-  theme_bw() + 
+  facet_wrap(~Topology, scales = "free", ncol = 1) +
+  scale_color_manual(values = pal_lm) +
+  theme_bw() +
   labs(title = "Difference between Climate- and IUCN-driven Extinctions",
        y = "Climate - IUCN Difference",
        x = "Network Dependency")

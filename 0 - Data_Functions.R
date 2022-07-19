@@ -453,19 +453,34 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
   Topos_vec <- c("n_species", "n_plants", "n_animals", "n_links", "Nestedness", "Modularity")
   fs <- list.files(path = Dir.Exports, pattern = paste0(RunName, "SimulationTopo"))
   fs <- fs[grep(pattern = paste(unlist(CutOffs), collapse = "-"), fs)]
-  IS_vec <- as.numeric(unlist(
-    lapply(
-      regmatches(fs, gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs)), 
-      "[[", 1
-    )
-  ))
-  fs <- fs[order(IS_vec)]
+  # IS_vec <- as.numeric(unlist(
+  #   lapply(
+  #     regmatches(fs, gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs)), 
+  #     "[[", 1
+  #   )
+  # ))
+  # Rew_vec <- as.numeric(unlist(
+  #   lapply(
+  #     regmatches(fs, gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs)), 
+  #     "[[", 2
+  #   )
+  # ))
+  # fs <- fs[order(IS_vec)]
   pb <- txtProgressBar(min = 0, max = length(fs), style = 3)
   for(i in 1:length(fs)){
     ## data extraction
     Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
     Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
-    Eff2_df$IS <- Topo2_df$IS <- sort(IS_vec)[i]
+    Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
+      regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
+      "[[", 1
+    )))
+    Eff2_df$RE <- Topo2_df$RE <- as.numeric(unlist(
+      lapply(
+        regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs[i])), 
+        "[[", 2
+      )
+    ))
     
     ## difference to pre-extinction
     ## Relative effect
@@ -477,6 +492,7 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
         netID = PlotCombin_df$netID,
         Proxy = PlotCombin_df$Proxy.y,
         IS = PlotCombin_df$IS,
+        RE = PlotCombin_df$RE,
         Topology = x,
         # Pre = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[1]],
         Post = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[2]],
