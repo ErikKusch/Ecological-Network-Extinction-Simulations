@@ -185,7 +185,7 @@ if(file.exists(file.path(Dir.Data, "Enviro_Pres.nc"))){
       DataSet = "era5-land",
       DateStart = "1982-01-01",
       DateStop = "1999-12-31",
-      TResolution = "monsth",
+      TResolution = "month",
       TStep = 1,
       API_User = API_User,
       API_Key = API_Key,

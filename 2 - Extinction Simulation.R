@@ -116,45 +116,54 @@ meta_df <- meta_df[meta_df$animal.phylo.id %in% animals_sp | meta_df$plant.phylo
 options(warn=-1)
 ### Animals ----------------------------
 print("Animals")
-RewClass_Animals <- pblapply(animals_sp, function(x){
-  # message(x)
-  sub_df <- meta_df[meta_df$animal.phylo.id == x, ]
-  reg_df <- sub_df[,c(4, 22:29)] # value, and plant traits
-  if(sum(reg_df$value) == 0 | nrow(reg_df) == 1){
-    0
-  }else{
-    if(sum(reg_df$value) == nrow(reg_df)){
-      1
+if(!file.exists(file.path(Dir.Exports, "RewiringAnimals.RData"))){
+  RewClass_Animals <- pblapply(animals_sp, function(x){
+    # message(x)
+    sub_df <- meta_df[meta_df$animal.phylo.id == x, ]
+    reg_df <- sub_df[,c(4, 22:29)] # value, and plant traits
+    if(sum(reg_df$value) == 0 | nrow(reg_df) == 1){
+      0
     }else{
-      invisible(capture.output(
-        modRF <- tuneRF(y = reg_df[,1], x = reg_df[,-1], plot = FALSE, doBest = TRUE, trace = FALSE, do.trace = FALSE)
-      ))
-      modRF
+      if(sum(reg_df$value) == nrow(reg_df)){
+        1
+      }else{
+        invisible(capture.output(
+          modRF <- tuneRF(y = reg_df[,1], x = reg_df[,-1], plot = FALSE, doBest = TRUE, trace = FALSE, do.trace = FALSE)
+        ))
+        modRF
+      }
     }
-  }
-})
-names(RewClass_Animals) <- animals_sp
-# randomForest:::predict.randomForest(rf_mod, meta_df)
+  })
+  names(RewClass_Animals) <- animals_sp
+  save(RewClass_Animals, file = file.path(Dir.Exports, "RewiringAnimals.RData"))
+}else{
+  load(file.path(Dir.Exports, "RewiringAnimals.RData"))
+}
 
 ### Plants ----------------------------
 print("Plants")
-RewClass_Plants <- pblapply(plants_sp, function(x){
-  sub_df <- meta_df[meta_df$plant.phylo.id == x, ]
-  reg_df <- sub_df[,c(4, 2, 5:15)] # value, and plant traits
-  if(sum(reg_df$value) == 0 | nrow(reg_df) == 1){
-    0
-  }else{
-    if(sum(reg_df$value) == nrow(reg_df)){
-      1
+if(!file.exists(file.path(Dir.Exports, "RewiringPlants.RData"))){
+  RewClass_Plants <- pblapply(plants_sp, function(x){
+    sub_df <- meta_df[meta_df$plant.phylo.id == x, ]
+    reg_df <- sub_df[,c(4, 2, 5:15)] # value, and plant traits
+    if(sum(reg_df$value) == 0 | nrow(reg_df) == 1){
+      0
     }else{
-      invisible(capture.output(
-        modRF <- tuneRF(y = reg_df[,1], x = reg_df[,-1], plot = FALSE, doBest = TRUE, trace = FALSE, do.trace = FALSE)
+      if(sum(reg_df$value) == nrow(reg_df)){
+        1
+      }else{
+        invisible(capture.output(
+          modRF <- tuneRF(y = reg_df[,1], x = reg_df[,-1], plot = FALSE, doBest = TRUE, trace = FALSE, do.trace = FALSE)
         ))
-      modRF
+        modRF
+      }
     }
-  }
-})
-names(RewClass_Plants) <- plants_sp
+  })
+  names(RewClass_Plants) <- plants_sp
+  save(RewClass_Plants, file = file.path(Dir.Exports, "RewiringPlants.RData"))
+}else{
+  load(file.path(Dir.Exports, "RewiringPlants.RData"))
+}
 
 ### Full List of Models ---------------
 RewClass_ls <- c(RewClass_Animals, RewClass_Plants)
@@ -193,9 +202,6 @@ PreExt_df$Simulation <- "Pre-Extinction"
 # POST-EXCTINCTION =========================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
-# Rewiring_Iter <- 0.05
-# IS_iter <- 0.5
-
 ## Extinction Simulations --------------------------------------------------
 for(Rewiring_Iter in seq(0, 1, 0.05)){
   for(IS_iter in seq(0, 1, 0.05)){
@@ -205,18 +211,18 @@ for(Rewiring_Iter in seq(0, 1, 0.05)){
     TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
                                 IS = IS_iter, Rewiring = Rewiring_Iter,
                                 CutOffs = CutOffs)
-    # Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
-    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
-    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                             CutOffs = CutOffs)
-    # Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
-    #                       IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-    # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
-    #                             IS = IS_iter, Rewiring = Rewiring_Iter,
-    #                             CutOffs = CutOffs)
+    Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
+                          IS = IS_iter, Rewiring = Rewiring_Iter,
+                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
+                                IS = IS_iter, Rewiring = Rewiring_Iter,
+                                CutOffs = CutOffs)
+    Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
+                          IS = IS_iter, Rewiring = Rewiring_Iter,
+                          CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+    TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
+                                IS = IS_iter, Rewiring = Rewiring_Iter,
+                                CutOffs = CutOffs)
   }
 }
 
@@ -226,6 +232,8 @@ message("Sensitivity analysis for WHICH = 'Strength' in FUN_SimComp.")
 ## Topology Loading and Storing as one object ------------------------------
 ## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
 PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs, Pre = PreExt_df)
+save(PlotTopoAll_ls, file = file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
+load(file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
 PlotTopoPlants_ls <- loadTopo(RunName = "Plants", CutOffs = CutOffs, Pre = PreExt_df)
 PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs, Pre = PreExt_df)
 
@@ -294,15 +302,35 @@ pred_gg <- ggplot(plot_df, aes(x = RE, y = IS)) +
   geom_tile(aes(fill = RelChange)) +
   coord_fixed() + 
   facet_wrap(~Topology+Proxy) + 
-  scale_fill_viridis("Mean", option = "B", direction = -1)
+  theme_bw() + 
+  xlab("Probability of Rewiring Required to Realise Novel Links") + 
+  ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
+  guides(fill = guide_colourbar(barwidth = 20,
+                                barheight = 1.5,
+                                title = "Proportion of \n Secondary Extinctions",
+                                title.position = "left",
+                                # direction = "horizontal",
+                                legend.location = "bottom")) + 
+  scale_fill_viridis("Mean", option = "B", direction = -1) + 
+  theme(legend.position = "bottom")
 
 sd_gg <- ggplot(sd_df, aes(x = RE, y = IS)) +
   geom_tile(aes(fill = RelChange)) +
   coord_fixed() +
   facet_wrap(~Topology+Proxy) + 
-  scale_fill_viridis("SD", option = "D")
+  theme_bw() + 
+  xlab("Probability of Rewiring Required to Realise Novel Links") + 
+  ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
+  guides(fill = guide_colourbar(barwidth = 20,
+                                barheight = 1.5,
+                                title = "Proportion of \n Secondary Extinctions",
+                                title.position = "left",
+                                # direction = "horizontal",
+                                legend.location = "bottom")) + 
+  scale_fill_viridis("SD", option = "D") + 
+  theme(legend.position = "bottom")
 
-print(plot_grid(pred_gg, sd_gg, nrow = 2))
+print(plot_grid(pred_gg, sd_gg, nrow = 1))
 
 ### Effect Sizes ----
 EffectSize_df <- PlotTopoAll_ls$EffectSize
@@ -332,7 +360,13 @@ plot_df$Sig <- ifelse(abs(sign(Upper) + sign(Lower)) == 2, TRUE, FALSE)
     scale_fill_gradient2(high = "darkgreen", low = "darkred") +
     geom_point(aes(shape = Sig), size = 2) +
     scale_shape_manual(values=c(32, 15), na.translate = FALSE, name = "Significance") +
-    guides(shape = FALSE)
+    guides(shape = FALSE) + 
+    theme_bw() + 
+    xlab("Probability of Rewiring Required to Realise Novel Links") + 
+    ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
+    guides(fill = guide_colourbar(barwidth = 2,
+                                  barheight = 15,
+                                  title = "Effect Size"))
   
   
 stop("significance of effect size?")
@@ -348,7 +382,7 @@ stop("significance of effect size?")
 ## Effects of each extinction proxy ----------------------------------------
 
 stop("increase this RE selection to 1 when trying to recreate initial plots")
-Plot_df <- PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$RE == 0.4, ]
+Plot_df <- PlotTopoAll_ls$Change[PlotTopoAll_ls$Change$RE == 1, ]
 
 
 TopoPlots <- c("n_species", "n_animals", "n_plants")

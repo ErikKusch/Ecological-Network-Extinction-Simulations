@@ -251,11 +251,11 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                  ### Probability matrix-driven block
                                                                  RewiringDist = prob_mat, # 
                                                                  RewiringProb = Rewiring
-                                                                 )
+                           )
                            ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                            parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimNum = length(proxcen),
-                                                            IS = IS,
+                                                          parallel = FALSE, ncores = parallel::detectCores(), 
+                                                          SimNum = length(proxcen),
+                                                          IS = IS,
                                                           NetworkType = "Mutualistic",
                                                           ## PDF-driven rewiring block
                                                           Rewiring = function(x){x},
@@ -278,20 +278,20 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                              CustOrder_ExtC <- SimulateExtinctions(Network = net, 
                                                                    Method = "Ordered", 
                                                                    Order = primext_order,
-                                                                 IS = IS,
-                                                                 NetworkType = "Mutualistic",
-                                                                 ## PDF-driven rewiring block
-                                                                 Rewiring = function(x){x},
-                                                                 # decay = Rewiring
-                                                                 # RewiringDist = dist_mat, #
-                                                                 ### Probability matrix-driven block
-                                                                 RewiringDist = prob_mat, # 
-                                                                 RewiringProb = Rewiring
+                                                                   IS = IS,
+                                                                   NetworkType = "Mutualistic",
+                                                                   ## PDF-driven rewiring block
+                                                                   Rewiring = function(x){x},
+                                                                   # decay = Rewiring
+                                                                   # RewiringDist = dist_mat, #
+                                                                   ### Probability matrix-driven block
+                                                                   RewiringDist = prob_mat, # 
+                                                                   RewiringProb = Rewiring
                              )
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                              parallel = FALSE, ncores = parallel::detectCores(), 
-                                                              SimNum = length(primext_namesC),
-                                                              IS = IS,
+                                                            parallel = FALSE, ncores = parallel::detectCores(), 
+                                                            SimNum = length(primext_namesC),
+                                                            IS = IS,
                                                             NetworkType = "Mutualistic",
                                                             ## PDF-driven rewiring block
                                                             Rewiring = function(x){x},
@@ -307,7 +307,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          
                          ## IUCN-Driven -------------------------------------------------------------
                          # print("Extinction of Threatened Species (IUCN Categories)")
-                         primext_namesI <- names(x$prox_IUCN)[x$prox_IUCN > CutOffs$Climate] # random cutoff of climate risk severity selected here
+                         primext_namesI <- names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN] # random cutoff of climate risk severity selected here
                          primext_order <- match(primext_namesI, rownames(x$Adjacency))
                          CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
                          if("IUCN" %in% WHICH){
@@ -327,9 +327,9 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    RewiringProb = Rewiring
                              )
                              ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                              parallel = FALSE, ncores = parallel::detectCores(), 
-                                                              SimNum = length(primext_namesI),
-                                                              IS = IS,
+                                                            parallel = FALSE, ncores = parallel::detectCores(), 
+                                                            SimNum = length(primext_namesI),
+                                                            IS = IS,
                                                             NetworkType = "Mutualistic",
                                                             ## PDF-driven rewiring block
                                                             Rewiring = function(x){x},
@@ -338,6 +338,46 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                             ### Probability matrix-driven block
                                                             RewiringDist = prob_mat, # 
                                                             RewiringProb = Rewiring
+                             )
+                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
+                           } 
+                         }
+                         
+                         
+                         ## IUCN-Climate-Driven ----------------------------------------------------
+                         # print("Extinction of Threatened Species (IUCN Categories)")
+                         primext_namesCombin <- c(names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN], 
+                                                  names(x$prox_climate)[x$prox_climate > CutOffs$Climate])
+                         primext_order <- match(unique(primext_namesCombin), rownames(x$Adjacency))
+                         CustOrder_ExtIC <- ExtIC_Rand <- as.list(c(NA, NA))
+                         if("IUCN" %in% WHICH & "IUCN" %in% WHICH){
+                           print("IUCN + Climate")
+                           if(length(primext_namesCombin) != 0){
+                             CustOrder_ExtIC <- SimulateExtinctions(Network = net, 
+                                                                    Method = "Ordered", 
+                                                                    Order = primext_order,
+                                                                    IS = IS,
+                                                                    NetworkType = "Mutualistic",
+                                                                    ## PDF-driven rewiring block
+                                                                    Rewiring = function(x){x},
+                                                                    # decay = Rewiring
+                                                                    # RewiringDist = dist_mat, #
+                                                                    ### Probability matrix-driven block
+                                                                    RewiringDist = prob_mat, # 
+                                                                    RewiringProb = Rewiring
+                             )
+                             ExtIC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
+                                                             parallel = FALSE, ncores = parallel::detectCores(), 
+                                                             SimNum = length(unique(primext_namesCombin)),
+                                                             IS = IS,
+                                                             NetworkType = "Mutualistic",
+                                                             ## PDF-driven rewiring block
+                                                             Rewiring = function(x){x},
+                                                             # decay = Rewiring
+                                                             # RewiringDist = dist_mat, #
+                                                             ### Probability matrix-driven block
+                                                             RewiringDist = prob_mat, # 
+                                                             RewiringProb = Rewiring
                              )
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
@@ -355,6 +395,10 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          IUCN = list(Removed = primext_namesI,
                                      Prediction = as.matrix(CustOrder_ExtI[[2]]),
                                      Random = lapply(ExtI_Rand$nets, as.matrix)
+                         ),
+                         IUCN_Climate = list(Removed = primext_namesCombin,
+                                             Prediction = as.matrix(CustOrder_ExtIC[[2]]),
+                                             Random = lapply(ExtIC_Rand$nets, as.matrix)
                          )
                          )
                        })
@@ -383,11 +427,12 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
   }else{
     ## Topology Calculation
     PostExt_ls <- pblapply(names(Sim_ls), 
-                           cl = cl,
+                           # cl = cl,
                            FUN = function(netID){
                              Storage_ls <- list(Strength = list(Prediction = NA, Random = NA),
                                                 Climate = list(Prediction = NA, Random = NA),
-                                                IUCN = list(Prediction = NA, Random = NA))
+                                                IUCN = list(Prediction = NA, Random = NA),
+                                                IUCN_Climate = list(Prediction = NA, Random = NA))
                              for(i in names(Storage_ls)){
                                Storage_ls[[i]][["Prediction"]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]][["Prediction"]]))
                                Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
@@ -402,8 +447,10 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
     ## Topology Extraction
     Topo_ls <- list(Strength = NA,
                     Climate = NA,
-                    IUCN = NA)
-    for(k in c("Strength", "Climate", "IUCN")){
+                    IUCN = NA,
+                    IUCN_Climate = NA
+    )
+    for(k in c("Strength", "Climate", "IUCN", "IUCN_Climate")){
       # print(k)
       Pred_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Prediction"))
       Pred_df$netID <- names(Sim_ls)
@@ -502,7 +549,7 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
       Plot_df
     })
     Change2_df <- do.call(rbind, Rel_ls)
-  if(i == 1){
+    if(i == 1){
       Eff_df <- Eff2_df
       Topo_df <- Topo2_df
       Change_df <- Change2_df
