@@ -207,17 +207,16 @@ parallel::clusterExport(cl,
 message("### EXTINCTION SIMULATION(S) ###")
 
 if(all(unlist(
-  lapply(list(file.path(Dir.Exports, "PlotTopoAll_ls.RData")
-              # ,
-              # file.path(Dir.Exports, "PlotTopoPlants_ls.RData"), 
-              # file.path(Dir.Exports, "PlotTopoAnimals_ls.RData")
+  lapply(list(file.path(Dir.Exports, "PlotTopoAll_ls.RData"),
+              file.path(Dir.Exports, "PlotTopoPlants_ls.RData"),
+              file.path(Dir.Exports, "PlotTopoAnimals_ls.RData")
   ),
   file.exists)
 ))){
   print("Simulations and topologies already calculated - Loading 3 files from hard drive")
   PlotTopoAll_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
-  # PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
-  # PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
+  PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
+  PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
 }else{
   ## Extinction Simulations --------------------------------------------------
   for(Rewiring_Iter in seq(0, 1, 0.05)){
@@ -610,7 +609,7 @@ plot_df$Sig <- ifelse(abs(sign(Upper) + sign(Lower)) == 2, TRUE, FALSE)
 effectsizeplot <- ggplot(plot_df, aes(x = RE, y = IS)) +
   geom_tile(aes(fill = EffectSize)) +
   coord_fixed() + 
-  facet_wrap(~Topology+Pry) + 
+  facet_wrap(~Pry+factor(Topology, levels = TopoPlots)) + 
   scale_fill_gradient2(high = "darkgreen", low = "darkred") +
   geom_point(aes(shape = Sig), size = 2) +
   scale_shape_manual(values=c(32, 15), na.translate = FALSE, name = "Significance") +

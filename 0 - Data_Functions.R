@@ -462,10 +462,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          }
                          
                          list(Strength = list(Removed = primext_namesS,
-                                              Prediction = as.matrix.network.adjacency(CustOrder_ExtS[[2]], 
-                                                                                       attrname = "weight"),
-                                              Random = lapply(ExtS_Rand$nets, as.matrix.network.adjacency,
-                                                              attrname = "weight")
+                                              Prediction = Fun.Save(x = CustOrder_ExtS, y = ExtS_Rand)$Pred,
+                                              Random = Fun.Save(x = CustOrder_ExtS, y = ExtS_Rand)$Rand
                          ),
                          Climate = list(Removed = primext_namesC,
                                         Prediction = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Pred,
