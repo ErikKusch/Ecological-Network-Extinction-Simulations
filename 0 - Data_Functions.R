@@ -7,6 +7,29 @@
 #' AUTHOR: [Erik Kusch]
 #' ####################################################################### #
 
+# SAVING & LOADING with Progress Bars ======================================
+## shamelessly plagiarised from: https://stackoverflow.com/questions/6165077/how-do-i-create-a-progress-bar-for-data-loading-in-r
+saveObj <- function(object, file.name){
+  outfile <- file(file.name, "wb")
+  serialize(object, outfile)
+  close(outfile)
+}
+
+loadObj <- function(file.name){
+  library(foreach)
+  filesize <- file.info(file.name)$size
+  chunksize <- ceiling(filesize / 100)
+  pb <- txtProgressBar(min = 0, max = 100, style=3)
+  infile <- file(file.name, "rb")
+  data <- foreach(it = icount(100), .combine = c) %do% {
+    setTxtProgressBar(pb, it)
+    readBin(infile, "raw", chunksize)
+  }
+  close(infile)
+  close(pb)
+  return(unserialize(data))
+}
+
 # GBIF Occurrences =========================================================
 Gbif_Species <- function(species = NULL, year_vec = 2000:2020){
   n_species <- length(unique(species))
@@ -114,19 +137,34 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
 
 # Network Topology =========================================================
 FUN_Topo <- function(plot_df){
-  Nes <- try(bipartite::networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
-  Mod <- try(bipartite::NOS(web = plot_df)$mod, silent = TRUE)
-  round(
+  if(sum(plot_df) == 0){
     data.frame(
-      n_species = ncol(plot_df),
-      n_animals = sum(colnames(plot_df) %in% rownames(animals_gowdis)),
-      n_plants = sum(colnames(plot_df) %in% rownames(plants_gowdis)),
-      n_links = sum(plot_df>0),
-      mean_interac = mean(plot_df[plot_df>0]),
-      connectedness = sum(plot_df>0)/length(plot_df),
-      Nestedness = as.numeric(ifelse(class(Nes) == "try-error", NA, Nes)),
-      Modularity = as.numeric(ifelse(class(Mod) == "try-error", NA, Mod))
-    ), 4)
+      n_species = 0,
+      n_animals = 0,
+      n_plants = 0,
+      n_links = 0,
+      mean_interac = 0,
+      connectedness = 0,
+      Nestedness = NA,
+      Modularity = NA
+    )
+  }else{
+    Nes <- try(bipartite::networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
+    Mod <- try(bipartite::NOS(web = plot_df)$mod, silent = TRUE)
+    round(
+      data.frame(
+        n_species = ncol(plot_df),
+        n_animals = sum(colnames(plot_df) %in% rownames(animals_gowdis)),
+        n_plants = sum(colnames(plot_df) %in% rownames(plants_gowdis)),
+        n_links = sum(plot_df>0),
+        mean_interac = mean(plot_df[plot_df>0]),
+        connectedness = sum(plot_df>0)/length(plot_df),
+        Nestedness = as.numeric(ifelse(class(Nes) == "try-error", NA, Nes)),
+        Modularity = as.numeric(ifelse(class(Mod) == "try-error", NA, Mod))
+      ), 4)
+  }
+  
+  
 }
 
 # Extinction Simulation ====================================================
@@ -156,7 +194,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                        cl = cl,
                        function(y){
                          # print(x)
-                         # y <- names(AnalysisData_ls)[2]
+                         # y <- names(AnalysisData_ls)[1]
                          message(y)
                          x <- AnalysisData_ls[[y]]
                          
@@ -344,62 +382,104 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          }
                          
                          
-                         ## IUCN-Climate-Driven ----------------------------------------------------
-                         # print("Extinction of Threatened Species (IUCN Categories)")
-                         primext_namesCombin <- c(names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN], 
-                                                  names(x$prox_climate)[x$prox_climate > CutOffs$Climate])
-                         primext_order <- match(unique(primext_namesCombin), rownames(x$Adjacency))
-                         CustOrder_ExtIC <- ExtIC_Rand <- as.list(c(NA, NA))
-                         if("IUCN" %in% WHICH & "IUCN" %in% WHICH){
-                           print("IUCN + Climate")
-                           if(length(primext_namesCombin) != 0){
-                             CustOrder_ExtIC <- SimulateExtinctions(Network = net, 
-                                                                    Method = "Ordered", 
-                                                                    Order = primext_order,
-                                                                    IS = IS,
-                                                                    NetworkType = "Mutualistic",
-                                                                    ## PDF-driven rewiring block
-                                                                    Rewiring = function(x){x},
-                                                                    # decay = Rewiring
-                                                                    # RewiringDist = dist_mat, #
-                                                                    ### Probability matrix-driven block
-                                                                    RewiringDist = prob_mat, # 
-                                                                    RewiringProb = Rewiring
-                             )
-                             ExtIC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                             parallel = FALSE, ncores = parallel::detectCores(), 
-                                                             SimNum = length(unique(primext_namesCombin)),
-                                                             IS = IS,
-                                                             NetworkType = "Mutualistic",
-                                                             ## PDF-driven rewiring block
-                                                             Rewiring = function(x){x},
-                                                             # decay = Rewiring
-                                                             # RewiringDist = dist_mat, #
-                                                             ### Probability matrix-driven block
-                                                             RewiringDist = prob_mat, # 
-                                                             RewiringProb = Rewiring
-                             )
-                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
-                           } 
-                         }
+                         # ## IUCN-Climate-Driven ----------------------------------------------------
+                         # # print("Extinction of Threatened Species (IUCN Categories)")
+                         # primext_namesCombin <- c(names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN], 
+                         #                          names(x$prox_climate)[x$prox_climate > CutOffs$Climate])
+                         # primext_order <- match(unique(primext_namesCombin), rownames(x$Adjacency))
+                         # CustOrder_ExtIC <- ExtIC_Rand <- as.list(c(NA, NA))
+                         # if("IUCN" %in% WHICH & "Climate" %in% WHICH){
+                         #   print("IUCN + Climate")
+                         #   if(length(primext_namesCombin) != 0){
+                         #     CustOrder_ExtIC <- SimulateExtinctions(Network = net, 
+                         #                                            Method = "Ordered", 
+                         #                                            Order = primext_order,
+                         #                                            IS = IS,
+                         #                                            NetworkType = "Mutualistic",
+                         #                                            ## PDF-driven rewiring block
+                         #                                            Rewiring = function(x){x},
+                         #                                            # decay = Rewiring
+                         #                                            # RewiringDist = dist_mat, #
+                         #                                            ### Probability matrix-driven block
+                         #                                            RewiringDist = prob_mat, # 
+                         #                                            RewiringProb = Rewiring
+                         #     )
+                         #     ExtIC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
+                         #                                     parallel = FALSE, ncores = parallel::detectCores(), 
+                         #                                     SimNum = length(unique(primext_namesCombin)),
+                         #                                     IS = IS,
+                         #                                     NetworkType = "Mutualistic",
+                         #                                     ## PDF-driven rewiring block
+                         #                                     Rewiring = function(x){x},
+                         #                                     # decay = Rewiring
+                         #                                     # RewiringDist = dist_mat, #
+                         #                                     ### Probability matrix-driven block
+                         #                                     RewiringDist = prob_mat, # 
+                         #                                     RewiringProb = Rewiring
+                         #     )
+                         #     # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
+                         #   } 
+                         # }
                          
                          ## Export ------------------------------------------------------------------
+                         # print(nrow(as.matrix(CustOrder_ExtI[[2]])))
+                         # as.matrix(CustOrder_ExtI[[2]])
+                         Fun.Save<- function(x = CustOrder_ExtI, y = ExtI_Rand){
+                           if(nrow(as.matrix(x[[2]])) != 1){
+                             # message("################## Saving IUCN ######################")
+                             Pred <- as.matrix.network.adjacency(x[[2]], 
+                                                                 attrname = "weight")
+                             Rand <- lapply(y$nets, as.matrix.network.adjacency,
+                                            attrname = "weight") 
+                           }else{
+                             if(class(x[[2]]) == "network"){
+                               if(!is.na(get.vertex.attribute(x[[2]], "vertex.names "))){
+                                 # message("################## Saving IUCN ######################")
+                                 Pred <- as.matrix.network.adjacency(x[[2]], 
+                                                                     attrname = "weight")
+                                 Rand <- lapply(y$nets, as.matrix.network.adjacency,
+                                                attrname = "weight") 
+                               }else{
+                                 Pred <- as.matrix(x[[2]])
+                                 Rand <- lapply(y$nets, as.matrix) 
+                               } 
+                             }else{
+                               if(!is.na(x[[2]])){
+                                 # message("################## Saving IUCN ######################")
+                                 Pred <- as.matrix.network.adjacency(x[[2]], 
+                                                                     attrname = "weight")
+                                 Rand <- lapply(y$nets, as.matrix.network.adjacency,
+                                                attrname = "weight") 
+                               }else{
+                                 Pred <- as.matrix(x[[2]])
+                                 Rand <- lapply(y$nets, as.matrix) 
+                               }
+                             }
+                             
+                             
+                           }
+                           return(list(Pred = Pred, Rand = Rand))
+                         }
+                         
                          list(Strength = list(Removed = primext_namesS,
-                                              Prediction = as.matrix(CustOrder_ExtS[[2]]),
-                                              Random = lapply(ExtS_Rand$nets, as.matrix)
+                                              Prediction = as.matrix.network.adjacency(CustOrder_ExtS[[2]], 
+                                                                                       attrname = "weight"),
+                                              Random = lapply(ExtS_Rand$nets, as.matrix.network.adjacency,
+                                                              attrname = "weight")
                          ),
                          Climate = list(Removed = primext_namesC,
-                                        Prediction = as.matrix(CustOrder_ExtC[[2]]),
-                                        Random = lapply(ExtC_Rand$nets, as.matrix)
+                                        Prediction = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Pred,
+                                        Random = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Rand
                          ),
                          IUCN = list(Removed = primext_namesI,
-                                     Prediction = as.matrix(CustOrder_ExtI[[2]]),
-                                     Random = lapply(ExtI_Rand$nets, as.matrix)
-                         ),
-                         IUCN_Climate = list(Removed = primext_namesCombin,
-                                             Prediction = as.matrix(CustOrder_ExtIC[[2]]),
-                                             Random = lapply(ExtIC_Rand$nets, as.matrix)
+                                     Prediction = Fun.Save(x = CustOrder_ExtI, y = ExtI_Rand)$Pred,
+                                     Random = Fun.Save(x = CustOrder_ExtI, y = ExtI_Rand)$Rand
                          )
+                         # ,
+                         # IUCN_Climate = list(Removed = primext_namesCombin,
+                         #                     Prediction = as.matrix(CustOrder_ExtIC[[2]]),
+                         #                     Random = lapply(ExtIC_Rand$nets, as.matrix)
+                         # )
                          )
                        })
     names(Sim_ls) <- names(AnalysisData_ls)
@@ -412,7 +492,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
 }
 
 # Network Topology Comparison ==============================================
-FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
+FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, Pre = PreExt_df){
   
   if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", 
                                                IS, "_", Rewiring,
@@ -427,16 +507,24 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
   }else{
     ## Topology Calculation
     PostExt_ls <- pblapply(names(Sim_ls), 
-                           # cl = cl,
+                           cl = cl,
                            FUN = function(netID){
-                             Storage_ls <- list(Strength = list(Prediction = NA, Random = NA),
-                                                Climate = list(Prediction = NA, Random = NA),
-                                                IUCN = list(Prediction = NA, Random = NA),
-                                                IUCN_Climate = list(Prediction = NA, Random = NA))
+                             Storage_ls <- list(Strength = list(Removed = NA, Prediction = NA, Random = NA),
+                                                Climate = list(Removed = NA, Prediction = NA, Random = NA),
+                                                IUCN = list(Removed = NA, Prediction = NA, Random = NA)
+                                                # ,
+                                                # IUCN_Climate = list(Removed = NA, Prediction = NA, Random = NA)
+                             )
                              for(i in names(Storage_ls)){
-                               Storage_ls[[i]][["Prediction"]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]][["Prediction"]]))
-                               Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
-                               Storage_ls[[i]][["Random"]] <- do.call(rbind, Rand_ls)
+                               if(length(Sim_ls[[netID]][[i]][["Removed"]]) != 0){
+                                 Storage_ls[[i]][["Removed"]] <- length(Sim_ls[[netID]][[i]][["Removed"]])
+                                 Storage_ls[[i]][["Prediction"]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]][["Prediction"]]))
+                                 Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
+                                 Storage_ls[[i]][["Random"]] <- do.call(rbind, Rand_ls) 
+                               }else{
+                                 Storage_ls[[i]][["Removed"]] <- 0
+                                 Storage_ls[[i]][["Prediction"]] <- PreExt_df[PreExt_df$netID == netID, 1:8]
+                               }
                              }
                              Storage_ls
                            })
@@ -447,16 +535,22 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
     ## Topology Extraction
     Topo_ls <- list(Strength = NA,
                     Climate = NA,
-                    IUCN = NA,
-                    IUCN_Climate = NA
+                    IUCN = NA
+                    # ,
+                    # IUCN_Climate = NA
     )
-    for(k in c("Strength", "Climate", "IUCN", "IUCN_Climate")){
+    for(k in c("Strength", "Climate", "IUCN"
+               # , "IUCN_Climate"
+    )){
       # print(k)
+      Rem_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Removed"))
       Pred_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Prediction"))
       Pred_df$netID <- names(Sim_ls)
       Pred_df$Proxy <- k
       Pred_df$Simulation <- "Prediction"
+      Pred_df$Removed <- Rem_df[,1]
       Rand_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"))
+      Rand_df <- Rand_df[unlist(lapply(strsplit(rownames(Rand_df), split = "[.]"), "[[", 1)) %in% rownames(Rem_df)[Rem_df != 0], ]
       if(is.null(Rand_df)){ # this happens when no simulation could be run for the entire list of networks for this proxy
         next()
       }else{
@@ -464,6 +558,7 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs){
                              each = 1e2)
         Rand_df$Proxy <- k
         Rand_df$Simulation <- "Random"
+        Rand_df$Removed <- 9999
         # print(head(Pred_df))
         # print(head(Rand_df))
         Topo_ls[[k]] <- rbind(Pred_df, Rand_df) 

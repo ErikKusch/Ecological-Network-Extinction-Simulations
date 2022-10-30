@@ -176,7 +176,7 @@ ExtinctionOrder <- function(Network, Order, NetworkType = "Trophic", clust.metho
   Conected1 <- Order
   
   ## Interaction Strength Loss Preparations ++++++++++ ++++++++++
-  if(length(IS )== 1){ # when the same dependency is to be applied for all species
+  if(length(IS)== 1){ # when the same dependency is to be applied for all species
     IS <- rep(IS, network.size(Network)) # repeat IS argument for all species
     names(IS) <- network::get.vertex.attribute(Network, "vertex.names") # assign species names to IS arguments
   }else{
@@ -239,7 +239,7 @@ ExtinctionOrder <- function(Network, Order, NetworkType = "Trophic", clust.metho
   
   # Sequential extinction simulation ++++++++++ ++++++++++ ++++++++++ ++++++++++
   if(verbose){ProgBar <- txtProgressBar(max = length(Order), style = 3)}
-  for (i in 1:length(Order)){
+  for(i in 1:length(Order)){
     # print(i)
     ### creating temporary network + deleting vertices if they have been set to go extinct ++++++++++ ++++++++++
     if(length(accExt)==0){ # on first iteration
@@ -294,7 +294,7 @@ ExtinctionOrder <- function(Network, Order, NetworkType = "Trophic", clust.metho
       Membership = suppressWarnings(igraph::cluster_infomap(igraph::as.undirected(netgraph),
                                                             e.weights = igraph::E(
                                                               igraph::as.undirected(netgraph)
-                                                              )$weight,
+                                                            )$weight,
                                                             v.weights = NULL,
                                                             nb.trials = nb.trials,
                                                             modularity = TRUE))
@@ -328,7 +328,12 @@ ExtinctionOrder <- function(Network, Order, NetworkType = "Trophic", clust.metho
         if(nrow(Lost_df)!=0){
           for(Iter_LostIS in 1:nrow(Lost_df)){ ## looping over all species that were linked to the current primary extinction
             # Iter_LostIS = 1
-            LostPartnerSim <- eval(str2lang(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])]))(RewiringDist[,LostPartner]) # probability of rewiring too each node in network given rewiring function and species similraity
+            if(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])] == "function (x)  {     x }"){
+              LostPartnerSim <- eval(str2lang(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])]))(RewiringDist[,Lost_df$names[Iter_LostIS]]) # probability of rewiring to each node
+            }else{
+              LostPartnerSim <- eval(str2lang(Rewiring[which(names(Rewiring) == Lost_df$names[Iter_LostIS])]))(RewiringDist[,LostPartner]) # probability of rewiring to each node in network given rewiring function and species similraity
+            }
+            
             RewiringCandidates <- LostPartnerSim[LostPartnerSim > RewiringProb & names(LostPartnerSim) %in% network::get.vertex.attribute(Temp, "vertex.names")] # rewiring probability for nodes still in temporary network and having a higher rewiring probability than 0.5
             RewiredPartner <- names(which.max(RewiringCandidates)) # most likely rewiring partner
             if(!is.null(RewiredPartner)){ # if a rewired partner has been found
@@ -354,7 +359,6 @@ ExtinctionOrder <- function(Network, Order, NetworkType = "Trophic", clust.metho
           RowSpec <- Rewiring_df[Iter_Rewiring,1+Rewiring_df[Iter_Rewiring,"Direction"]]
           Weight_mat[RowSpec, ColSpec] <- Weight_mat[RowSpec, ColSpec] + Rewiring_df[Iter_Rewiring,"IS"]
           ## deleting shiften interaction strength
-          
           ColLost <- ifelse(Rewiring_df[Iter_Rewiring, "Direction"] == 1,
                             Rewiring_df[Iter_Rewiring, "LostPartner"],
                             Rewiring_df[Iter_Rewiring, "Species"])

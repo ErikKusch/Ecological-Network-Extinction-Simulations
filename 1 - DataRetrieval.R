@@ -230,8 +230,8 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   
   ### SSP ----
   train_SSP <- lapply(c(file.path(Dir.D.Projections, "ssp245_tas_2081-2100.nc"), 
-                       file.path(Dir.D.Projections, "ssp245_mrsos_2081-2100.nc")
-                       ), stack)
+                        file.path(Dir.D.Projections, "ssp245_mrsos_2081-2100.nc")
+  ), stack)
   train_SSP <- lapply(train_SSP, FUN = function(x){
     x <- crop(x,extent(train_ERA))
     x <- mask(x, nets_shp)
@@ -243,7 +243,7 @@ if(!file.exists(file.path(Dir.Data, "Projections.nc"))){
   
   ### HISTORICAL ----
   train_HIST <- lapply(c(file.path(Dir.D.Projections, "historical_tas_1981-2000.nc"), 
-                        file.path(Dir.D.Projections, "historical_mrsos_1981-2000.nc")
+                         file.path(Dir.D.Projections, "historical_mrsos_1981-2000.nc")
   ), stack)
   train_HIST <- lapply(train_HIST, FUN = function(x){
     x <- crop(x,extent(train_ERA))
@@ -393,13 +393,13 @@ if(!file.exists(file.path(Dir.Data, "Projections.RData"))){
   
   ### DIFFERENCE AND FUSING ----
   Projections_stack <- list(Temp = stack(CMIP_tas_ras,
-                             TAS_ras,
-                             TAS_ras - CMIP_tas_ras),
+                                         TAS_ras,
+                                         TAS_ras - CMIP_tas_ras),
                             Water = stack(
-                             CMIP_mrsos_ras,
-                             MRSOS_ras,
-                             MRSOS_ras - CMIP_mrsos_ras)
-                            )
+                              CMIP_mrsos_ras,
+                              MRSOS_ras,
+                              MRSOS_ras - CMIP_mrsos_ras)
+  )
   save(Projections_stack, file = file.path(Dir.Data, "Projections.RData"))
 }else{
   print("Raw projection data already kriged")
@@ -652,9 +652,9 @@ load(file.path(Dir.Data, "Prox_Climate.RData"))
 message("## IUCN Criteria")
 if(!file.exists(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))){
   Prox.IUCN_df <- data.frame(Species = names(occ_ls),
-                        Category = NA,
-                        Source = NA,
-                        N = NA)
+                             Category = NA,
+                             Source = NA,
+                             N = NA)
 }else{
   Prox.IUCN_df <- readRDS(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
 }
