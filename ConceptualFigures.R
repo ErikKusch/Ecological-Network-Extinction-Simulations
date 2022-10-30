@@ -136,6 +136,7 @@ dev.off()
 
 ### Post-Extinction ----
 plot.Concept <- function(g = Pre_g, g2 = NULL){
+  layout_g <- g
   
   # colour of primary and secondary extinction vertices
   V(g)$color[V(Pre_g)$name %nin% V(g2)$name & V(Pre_g)$name %nin% RM_spec] <- 2
@@ -171,7 +172,7 @@ plot.Concept <- function(g = Pre_g, g2 = NULL){
                       ".",
                       substr(unlist(lapply(strsplit(V(g)$name, split = " "), "[[", 2)), start = 1, stop = 2))
   # plotting
-  plot(g, layout = layout_as_bipartite(g, hgap = 5, vgap = 0.5)[,c(2,1)], asp = 1.3, 
+  plot(g, layout = layout_as_bipartite(layout_g, hgap = 5, vgap = 0.5)[,c(2,1)], asp = 1.3, 
        vertex.color = c("grey","orange", "darkred")[V(g)$color+1], 
        edge.color = c("grey","darkred", "forestgreen")[E(g)$color+1], 
        edge.width = log(E(g)$weight+1)*3,
