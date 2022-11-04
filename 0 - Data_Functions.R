@@ -569,15 +569,17 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     SDRand <- aggregate(.~netID+Proxy+Simulation, FUN = sd, data = Topo_df[Topo_df$Simulation == "Random",])
     Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
     Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
-    Eff_df <-  (
-      Merge1_df[,4:ncol(MeanPred)] - # mean predictions
+    Eff_df <-  Merge1_df[,4:ncol(MeanPred)] - # mean predictions
         Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-4)]  # mean randoms
-    )/  Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):ncol(Merge1_df)]
     Eff_df$netID <- Merge1_df$netID
     Eff_df$Proxy <- Merge1_df$Proxy
     
+    EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):ncol(Merge1_df)]
+    EffSD_df$netID <- Merge1_df$netID
+    EffSD_df$Proxy <- Merge1_df$Proxy
+    colnames(Eff_df) <- colnames(EffSD_df)
     
-    Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df, Eff_df = Eff_df)
+    Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df, Eff_df = Eff_df, EffSD_df = EffSD_df)
     
     ## Data Return
     save(Save_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", 
@@ -610,12 +612,13 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
   for(i in 1:length(fs)){
     ## data extraction
     Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
+    EffSD2_df <- loadRData(file.path(Dir.Exports, fs[i]))$EffSD_df
     Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
-    Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
+    EffSD2_df$IS <- Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
       regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
       "[[", 1
     )))
-    Eff2_df$RE <- Topo2_df$RE <- as.numeric(unlist(
+    EffSD2_df$RE <- Eff2_df$RE <- Topo2_df$RE <- as.numeric(unlist(
       lapply(
         regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs[i])), 
         "[[", 2
@@ -644,15 +647,17 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
     Change2_df <- do.call(rbind, Rel_ls)
     if(i == 1){
       Eff_df <- Eff2_df
+      EffSD_df <- EffSD2_df
       Topo_df <- Topo2_df
       Change_df <- Change2_df
     }else{
       Eff_df <- rbind(Eff_df, Eff2_df)
+      EffSD_df <- rbind(EffSD_df, EffSD2_df)
       Topo_df <- rbind(Topo_df, Topo2_df)
       Change_df <- rbind(Change_df, Change2_df)
     }
     setTxtProgressBar(pb, i)
   }
   colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
-  return(list(Topology = Topo_df, EffectSize = Eff_df, Change = Change_df))
+  return(list(Topology = Topo_df, EffectSize = Eff_df, RandomSD = EffSD_df, Change = Change_df))
 }
