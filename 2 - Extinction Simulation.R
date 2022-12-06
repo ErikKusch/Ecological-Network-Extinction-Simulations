@@ -1,4 +1,4 @@
-#' ####################################################################### #
+#' ######################################################################
 #' PROJECT: [Biodiversity Simplification & Ecological Network Topology] 
 #' CONTENTS: 
 #'  - Extinction Simulation
@@ -6,22 +6,22 @@
 #'  - "0 - Preamble.R"
 #'  - "1 - DataRetrieval.R" has to have been run and produced "AnalysesData.RData" in "Dir.Data" directory
 #' AUTHOR: [Erik Kusch]
-#' ####################################################################### #
+#' ######################################################################
 
-# PREAMBLE =================================================================
+# PREAMBLE ==============================================================
 rm(list=ls())
 set.seed(42)
 
-## Sourcing ----------------------------------------------------------------
+## Sourcing -------------------------------------------------------------
 source("0 - Preamble.R")
 source("X - NetworkExtinctionFunsRewiring.R")
 source("0 - Data_Functions.R")
 
 message("########### STARTING ANALYSIS AND EXTINCTION SIMULATION ###########")
 
-# DATA LOADING & MANIPULATING ==============================================
+# DATA LOADING & MANIPULATING ===========================================
 message("### DATA PREPARATION ###")
-## Data Loading ------------------------------------------------------------
+## Data Loading ---------------------------------------------------------
 print("Loading Data")
 load(file.path(Dir.Data, "AnalysesData.RData")) # load the data needed for the analysis
 ## data now loaded:
@@ -35,7 +35,7 @@ load(file.path(Dir.Data, "AnalysesData.RData")) # load the data needed for the a
 #' - plants_gowdis: square matrix of plant species dissimilarity in trait space
 #' 
 
-## Data Manipulation -------------------------------------------------------
+## Data Manipulation ----------------------------------------------------
 print("Reformatting Data")
 ### IUCN Categories as numbers
 Prox.IUCN_df$Category <- toupper(substrRight(Prox.IUCN_df$Category, 2)) # reduce categories to just two letters in uppercase
@@ -99,12 +99,12 @@ ErrorCheck <- rowSums(
 )
 AnalysisData_ls <- AnalysisData_ls[ErrorCheck == 2]
 
-# POTENTIAL ASSOCIATIONS ===================================================
+# POTENTIAL ASSOCIATIONS ================================================
 message("### IDENTIFYING POTENTIAL REWIRING PARTNERS ###")
 plants_sp <- rownames(plants_gowdis)
 animals_sp <- rownames(animals_gowdis)
 
-## Metaweb -----------------------------------------------------------------
+## Metaweb --------------------------------------------------------------
 # metaweb_mat <- add_matrices(lapply(lapply(AnalysisData_ls, "[[", "Adjacency"), function(x){x > 0}))
 # metaweb_mat <- metaweb_mat[ , colnames(metaweb_mat) %in% colnames(animals_gowdis)]
 # metaweb_mat <- metaweb_mat[rownames(metaweb_mat) %in% rownames(plants_gowdis), ]
@@ -112,7 +112,7 @@ meta_df <- traits_df
 meta_df$value <- meta_df$value>0
 meta_df <- meta_df[meta_df$animal.phylo.id %in% animals_sp | meta_df$plant.phylo.id %in% plants_sp, ]
 
-## Potential Partner Identification ----------------------------------------
+## Potential Partner Identification -------------------------------------
 options(warn=-1)
 ### Animals ----------------------------
 print("Animals")
@@ -169,7 +169,7 @@ if(!file.exists(file.path(Dir.Exports, "RewiringPlants.RData"))){
 RewClass_ls <- c(RewClass_Animals, RewClass_Plants)
 options(warn=0)
 
-# PARALLEL EXECTIONS =======================================================
+# PARALLEL EXECTIONS ====================================================
 CutOffs <- list(Strength = 0.75,
                 Climate = 2,
                 IUCN = 5)
@@ -188,7 +188,7 @@ parallel::clusterExport(cl,
 )
 clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.package))
 
-# PRE-EXCTINCTION ==========================================================
+# PRE-EXCTINCTION =======================================================
 message("### PRE-EXTINCTION ###")
 print("Network Topologies")
 PreExt_df <- pblapply(lapply(AnalysisData_ls, "[[", "Adjacency"),
@@ -203,7 +203,7 @@ parallel::clusterExport(cl,
                         envir = environment()
 )
 
-# POST-EXCTINCTION =========================================================
+# POST-EXCTINCTION ======================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
 if(all(unlist(
@@ -218,8 +218,8 @@ if(all(unlist(
   PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
   PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
 }else{
-  ## Extinction Simulations --------------------------------------------------
-  for(Rewiring_Iter in seq(0, 1, 0.05)){
+  ## Extinction Simulations ---------------------------------------------
+  for(Rewiring_Iter in seq(0,  1, 0.05)){
     for(IS_iter in seq(0, 1, 0.05)){
       Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
                             IS = IS_iter, Rewiring = Rewiring_Iter,
@@ -242,10 +242,10 @@ if(all(unlist(
     }
   }
   
-  # ## Sensitivity Analysis ----------------------------------------------------
+  # ## Sensitivity Analysis ---------------------------------------------
   # message("Sensitivity analysis for WHICH = 'Strength' in FUN_SimComp.")
   
-  ## Topology Loading and Storing as one object ------------------------------
+  ## Topology Loading and Storing as one object -------------------------
   ## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
   PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs, Pre = PreExt_df)
   saveObj(PlotTopoAll_ls, file.name = file.path(Dir.Exports, "PlotTopoAll_ls.RData"))

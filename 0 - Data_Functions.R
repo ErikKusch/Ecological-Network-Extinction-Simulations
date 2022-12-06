@@ -178,7 +178,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                         WHICH = c("Strength", "Climate", "IUCN")
 ){
   
-  print(paste0(RunName, "; IS (% of IS required for continued existence) = ", IS, "; Rewiring Cutoff (probability of rewiring required) = ", Rewiring))
+  writeLines(paste0("## ", RunName, " ## \nIS (% of IS required for continued existence) = ", IS, " \nRewiring Cutoff (probability of rewiring required) = ", Rewiring))
   if(file.exists(file.path(Dir.Exports, paste0(RunName, "SimulationNets_", 
                                                IS, "_", Rewiring,
                                                "_CutOffs_", paste(unlist(CutOffs), collapse = "-"), 

@@ -27,6 +27,24 @@ CreateDir <- sapply(ExportDirs, function(x) if(!dir.exists(x)) dir.create(x))
 rm(list = c("CreateDir", "ExportDirs", "DataDirs"))
 
 # PACKAGES ================================================================
+
+## KrigR ------------------------------------------------------------------
+if("KrigR" %in% rownames(installed.packages()) == FALSE){ # KrigR check
+  Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS="true")
+  devtools::install_github("https://github.com/ErikKusch/KrigR", force = TRUE)
+}
+library(KrigR)
+try(source("X - PersonalSettings.R")) # I do this here to specify number of cores and API credentials and am thus not sharing this file
+# CDS API (needed for ERA5-Land downloads)
+if(!exists("API_Key") | !exists("API_User")){ # CS API check: if CDS API credentials have not been specified elsewhere
+  API_User <- readline(prompt = "Please enter your Climate Data Store API user number and hit ENTER.")
+  API_Key <- readline(prompt = "Please enter your Climate Data Store API key number and hit ENTER.")
+} # end of CDS API check
+# NUMBER OF CORES
+if(!exists("numberOfCores")){ # Core check: if number of cores for parallel processing has not been set yet
+  numberOfCores <- as.numeric(readline(prompt = paste("How many cores do you want to allocate to these processes? Your machine has", parallel::detectCores())))
+} # end of Core check
+
 ## CRAN -------------------------------------------------------------------
 # devtools::install_github("ErikKusch/NetworkExtinction", ref = "ErikDevel")
 install.load.package <- function(x) {
@@ -60,26 +78,12 @@ package_vec <- c(
   # "NetworkExtinction", # for network extinction simulations
   "viridis", # for extra colours in ggplot
   "ggvenn", # for venn diagrams
-  "randomForest" # for classification of associations potential
+  "randomForest", # for classification of associations potential
+  "brms", # for post-simulation bayesian models with zero-inflated beta
+  "tidybayes" # for brms output visualisations
 )
 sapply(package_vec, install.load.package)
 
-## KrigR ------------------------------------------------------------------
-if("KrigR" %in% rownames(installed.packages()) == FALSE){ # KrigR check
-  Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS="true")
-  devtools::install_github("https://github.com/ErikKusch/KrigR", force = TRUE)
-}
-library(KrigR) 
-try(source("X - PersonalSettings.R")) # I do this here to specify number of cores and API credentials and am thus not sharing this file
-# CDS API (needed for ERA5-Land downloads)
-if(!exists("API_Key") | !exists("API_User")){ # CS API check: if CDS API credentials have not been specified elsewhere
-  API_User <- readline(prompt = "Please enter your Climate Data Store API user number and hit ENTER.")
-  API_Key <- readline(prompt = "Please enter your Climate Data Store API key number and hit ENTER.")
-} # end of CDS API check
-# NUMBER OF CORES
-if(!exists("numberOfCores")){ # Core check: if number of cores for parallel processing has not been set yet
-  numberOfCores <- as.numeric(readline(prompt = paste("How many cores do you want to allocate to these processes? Your machine has", parallel::detectCores())))
-} # end of Core check
 
 # FUNCTIONALITY =============================================================
 `%nin%` <- Negate(`%in%`)
@@ -121,4 +125,11 @@ add_matrices <- function(a) {
   out <- array(0, dim = c(length(rows), length(cols)), dimnames = list(rows,cols))
   for (m in a) out[rownames(m), colnames(m)] <- out[rownames(m), colnames(m)] + m
   out
+}
+
+# source only part of a file
+source2 <- function(file, start, end, ...) {
+  file.lines <- scan(file, what=character(), skip=start-1, nlines=end-start+1, sep='\n')
+  file.lines.collapsed <- paste(file.lines, collapse='\n')
+  source(textConnection(file.lines.collapsed), ...)
 }
