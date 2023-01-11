@@ -136,8 +136,10 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
 }
 
 # Network Topology =========================================================
-FUN_Topo <- function(plot_df){
-  if(sum(plot_df) == 0){
+FUN_Topo <- function(plot_df, 
+                     animals = animals_sp, 
+                     plants = plants_sp){
+  if(sum(plot_df, na.rm = TRUE) == 0){
     data.frame(
       n_species = 0,
       n_animals = 0,
@@ -149,8 +151,18 @@ FUN_Topo <- function(plot_df){
       Modularity = NA
     )
   }else{
-    Nes <- try(bipartite::networklevel(web = plot_df, index = "weighted nestedness"), silent = TRUE)
-    Mod <- try(bipartite::NOS(web = plot_df)$mod, silent = TRUE)
+    bothtris <- as.matrix(
+      as_adjacency_matrix(
+        as.undirected(
+          graph_from_adjacency_matrix(plot_df, mode = "directed")
+        )
+      )
+    )
+    
+    adj_mat <- bothtris[rownames(bothtris) %in% plants_sp,
+                        colnames(bothtris) %in% animals_sp]
+    Nes <- try(bipartite::networklevel(web = adj_mat, index = "weighted nestedness"), silent = TRUE)
+    Mod <- try(bipartite::NOS(web = adj_mat)$mod, silent = TRUE)
     round(
       data.frame(
         n_species = ncol(plot_df),
@@ -343,6 +355,45 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            } 
                          }
                          
+                         ## SSP585-Driven -----------------------------------------------------------
+                         # print("Extinction of Threatened Species (Climate Projections)")
+                         if("SSP585" %in% WHICH){
+                           primext_namesC <- names(x$prox_climateSSP585)[x$prox_climateSSP585 > CutOffs$Climate] # random cutoff of climate risk severity selected here
+                           primext_order <- match(primext_namesC, rownames(x$Adjacency))
+                           CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
+                           
+                           if(length(primext_namesC) != 0){
+                             print("Climate")
+                             CustOrder_ExtC <- SimulateExtinctions(Network = net, 
+                                                                   Method = "Ordered", 
+                                                                   Order = primext_order,
+                                                                   IS = IS,
+                                                                   NetworkType = "Mutualistic",
+                                                                   ## PDF-driven rewiring block
+                                                                   Rewiring = function(x){x},
+                                                                   # decay = Rewiring
+                                                                   # RewiringDist = dist_mat, #
+                                                                   ### Probability matrix-driven block
+                                                                   RewiringDist = prob_mat, # 
+                                                                   RewiringProb = Rewiring
+                             )
+                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
+                                                            parallel = FALSE, ncores = parallel::detectCores(), 
+                                                            SimNum = length(primext_namesC),
+                                                            IS = IS,
+                                                            NetworkType = "Mutualistic",
+                                                            ## PDF-driven rewiring block
+                                                            Rewiring = function(x){x},
+                                                            # decay = Rewiring
+                                                            # RewiringDist = dist_mat, #
+                                                            ### Probability matrix-driven block
+                                                            RewiringDist = prob_mat, # 
+                                                            RewiringProb = Rewiring
+                             )
+                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
+                           } 
+                         }
+                         
                          ## IUCN-Driven -------------------------------------------------------------
                          # print("Extinction of Threatened Species (IUCN Categories)")
                          primext_namesI <- names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN] # random cutoff of climate risk severity selected here
@@ -381,50 +432,10 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            } 
                          }
                          
-                         
-                         # ## IUCN-Climate-Driven ----------------------------------------------------
-                         # # print("Extinction of Threatened Species (IUCN Categories)")
-                         # primext_namesCombin <- c(names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN], 
-                         #                          names(x$prox_climate)[x$prox_climate > CutOffs$Climate])
-                         # primext_order <- match(unique(primext_namesCombin), rownames(x$Adjacency))
-                         # CustOrder_ExtIC <- ExtIC_Rand <- as.list(c(NA, NA))
-                         # if("IUCN" %in% WHICH & "Climate" %in% WHICH){
-                         #   print("IUCN + Climate")
-                         #   if(length(primext_namesCombin) != 0){
-                         #     CustOrder_ExtIC <- SimulateExtinctions(Network = net, 
-                         #                                            Method = "Ordered", 
-                         #                                            Order = primext_order,
-                         #                                            IS = IS,
-                         #                                            NetworkType = "Mutualistic",
-                         #                                            ## PDF-driven rewiring block
-                         #                                            Rewiring = function(x){x},
-                         #                                            # decay = Rewiring
-                         #                                            # RewiringDist = dist_mat, #
-                         #                                            ### Probability matrix-driven block
-                         #                                            RewiringDist = prob_mat, # 
-                         #                                            RewiringProb = Rewiring
-                         #     )
-                         #     ExtIC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                         #                                     parallel = FALSE, ncores = parallel::detectCores(), 
-                         #                                     SimNum = length(unique(primext_namesCombin)),
-                         #                                     IS = IS,
-                         #                                     NetworkType = "Mutualistic",
-                         #                                     ## PDF-driven rewiring block
-                         #                                     Rewiring = function(x){x},
-                         #                                     # decay = Rewiring
-                         #                                     # RewiringDist = dist_mat, #
-                         #                                     ### Probability matrix-driven block
-                         #                                     RewiringDist = prob_mat, # 
-                         #                                     RewiringProb = Rewiring
-                         #     )
-                         #     # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
-                         #   } 
-                         # }
-                         
                          ## Export ------------------------------------------------------------------
                          # print(nrow(as.matrix(CustOrder_ExtI[[2]])))
                          # as.matrix(CustOrder_ExtI[[2]])
-                         Fun.Save<- function(x = CustOrder_ExtI, y = ExtI_Rand){
+                         Fun.Save <- function(x = CustOrder_ExtI, y = ExtI_Rand){
                            if(nrow(as.matrix(x[[2]])) != 1){
                              # message("################## Saving IUCN ######################")
                              Pred <- as.matrix.network.adjacency(x[[2]], 
@@ -507,6 +518,7 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     PostExt_ls <- pblapply(names(Sim_ls), 
                            cl = cl,
                            FUN = function(netID){
+                             print(netID)
                              Storage_ls <- list(Strength = list(Removed = NA, Prediction = NA, Random = NA),
                                                 Climate = list(Removed = NA, Prediction = NA, Random = NA),
                                                 IUCN = list(Removed = NA, Prediction = NA, Random = NA)
@@ -548,10 +560,15 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
       Pred_df$Simulation <- "Prediction"
       Pred_df$Removed <- Rem_df[,1]
       Rand_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"))
-      Rand_df <- Rand_df[unlist(lapply(strsplit(rownames(Rand_df), split = "[.]"), "[[", 1)) %in% rownames(Rem_df)[Rem_df != 0], ]
       if(is.null(Rand_df)){ # this happens when no simulation could be run for the entire list of networks for this proxy
+        Topo_ls[[k]] <- Pred_df
         next()
       }else{
+        Rand_df <- Rand_df[unlist(lapply(strsplit(rownames(Rand_df), split = "[.]"), "[[", 1)) %in% rownames(Rem_df)[Rem_df != 0], ]
+        if(is.logical(Rand_df)){
+          Topo_ls[[k]] <- Pred_df
+          next()
+        }
         Rand_df$netID <- rep(names(unlist(lapply(lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"), nrow))), # these are the names for which random sims could be run
                              each = 1e2)
         Rand_df$Proxy <- k
@@ -570,7 +587,7 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
     Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
     Eff_df <-  Merge1_df[,4:ncol(MeanPred)] - # mean predictions
-        Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-4)]  # mean randoms
+      Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-4)]  # mean randoms
     Eff_df$netID <- Merge1_df$netID
     Eff_df$Proxy <- Merge1_df$Proxy
     
@@ -614,14 +631,19 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
     Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
     EffSD2_df <- loadRData(file.path(Dir.Exports, fs[i]))$EffSD_df
     Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
-    EffSD2_df$IS <- Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
+    IS_Iter <- as.numeric(unlist(lapply(
       regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
       "[[", 1
+    )))
+    add <- ifelse(IS_Iter == 585, 1, 0)
+    EffSD2_df$IS <- Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
+      regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
+      "[[", 1+add
     )))
     EffSD2_df$RE <- Eff2_df$RE <- Topo2_df$RE <- as.numeric(unlist(
       lapply(
         regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs[i])), 
-        "[[", 2
+        "[[", 2+add
       )
     ))
     

@@ -82,7 +82,8 @@ AnalysisData_ls <- pblapply(names(List_ls), function(y){
     # Centrality
     prox_centrality = Prox.Centrality_ls[[y]],
     # Climate
-    prox_climate = Prox.Climate_ls[[y]]$Order,
+    prox_climate = ProxClim_ls[["ssp245"]][[y]]$Order,
+    prox_climateSSP585 = ProxClim_ls[["ssp585"]][[y]]$Order,
     # IUCN
     prox_IUCN = IUCN_vec
   )
@@ -209,19 +210,21 @@ message("### EXTINCTION SIMULATION(S) ###")
 if(all(unlist(
   lapply(list(file.path(Dir.Exports, "PlotTopoAll_ls.RData"),
               file.path(Dir.Exports, "PlotTopoPlants_ls.RData"),
-              file.path(Dir.Exports, "PlotTopoAnimals_ls.RData")
+              file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"),
+              file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData")
   ),
   file.exists)
 ))){
-  print("Simulations and topologies already calculated - Loading 3 files from hard drive")
+  print("Simulations and topologies already calculated - Loading 4 files from hard drive")
   PlotTopoAll_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
   PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
   PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
+  PlotTopoClimSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
 }else{
   ## Extinction Simulations ---------------------------------------------
   for(Rewiring_Iter in seq(0,  1, 0.05)){
     for(IS_iter in seq(0, 1, 0.05)){
-      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL", 
+      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL",
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
       TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
@@ -239,6 +242,11 @@ if(all(unlist(
       TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
                                   IS = IS_iter, Rewiring = Rewiring_Iter,
                                   CutOffs = CutOffs)
+      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP585", WHICH = "SSP585",
+                            IS = IS_iter, Rewiring = Rewiring_Iter,
+                            CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+      TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "SSP585",
+                                  IS = IS_iter, Rewiring = Rewiring_Iter, CutOffs = CutOffs)
     }
   }
   
@@ -253,4 +261,6 @@ if(all(unlist(
   saveObj(PlotTopoPlants_ls, file.name = file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
   PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs, Pre = PreExt_df)
   saveObj(PlotTopoAnimals_ls, file.name = file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
+  PlotTopoAnimals_ls <- loadTopo(RunName = "SSP585", CutOffs = CutOffs, Pre = PreExt_df)
+  saveObj(PlotTopoAnimals_ls, file.name = file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
 }

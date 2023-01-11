@@ -229,15 +229,23 @@ png(filename = file.path(Dir.Exports, "FIG2_Arias-Arone_2016_1-1.png"), width = 
 plot.Concept(g2 = Post11_igraph)
 dev.off()
 
-# FIGURE 2, S6, S7, S8 - Multi-Network Resilience Landscape ----------------
-print("########## FIGURE 3, S6, S7, S8")
+# FIGURE 2, S6, S7, S8, S9 - Multi-Network Resilience Landscape -------------
+print("########## FIGURE 3, S6, S7, S8, S9")
 
 ### Effects relative to pre-extinction network topology ----
-MeanNames <- c("FIGS8", "FIGS7", "FIG3")
-SDNames <- c("FIGS8", "FIGS7", "FIGS6")
+MeanNames <- c("FIGS8", "FIGS7", "FIG3", "FIGS9")
+SDNames <- c("FIGS8", "FIGS7", "FIGS6", "FIGS9")
 RunName = "ALL"
 # for(RunName in names(PlotTopo_ls)){
 Change_df <- PlotTopo_ls[[RunName]]$Change
+
+SSP585_df <- PlotTopoClimSSP585_ls$Change
+SSP585_df <- SSP585_df[SSP585_df$Proxy == "Climate", ]
+SSP585_df$Proxy <- "SSP585"
+SSP585_df$Casc <- "ALL"
+
+Change_df <- rbind(Change_df, SSP585_df)
+
 Proxy_ls <- as.list(rep(NA, length(unique(Change_df$Proxy))))
 names(Proxy_ls) <- unique(Change_df$Proxy)
 
@@ -412,8 +420,8 @@ ggvenn(Venn_ls, fill_color = pal_lm, fill_alpha = 0.8, text_color = "white")
 ggsave(filename = file.path(Dir.Exports, paste0("FIGS5_Proxy", RunName,".png")), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
 # }
 
-# FIGURE S9 - Effect Sizes ---------------------------------------------------
-print("########## FIGURE S9")
+# FIGURE S10 - Effect Sizes --------------------------------------------------
+print("########## FIGURE S10")
 RunName = "ALL"
 # for(RunName in names(PlotTopo_ls)){
 ## extract necessary data
@@ -496,12 +504,12 @@ for(proxy_iter in unique(Plot_df$Pry)){
 
 ggsave(ES_ls[[1]],
        width = 34/1.2, height = 30/1.2, units = "cm",
-       filename = file.path(Dir.Exports, paste0("FIGS9A_EffectSizes-", RunName, ".png"))
+       filename = file.path(Dir.Exports, paste0("FIGS10A_EffectSizes-", RunName, ".png"))
 )
 
 ggsave(
   plot_grid(plotlist = ES_ls[-1], nrow = 1), 
-  filename = file.path(Dir.Exports, paste0("FIGS9B+C_EffectSizes-", RunName, ".png")), 
+  filename = file.path(Dir.Exports, paste0("FIGS10B+C_EffectSizes-", RunName, ".png")), 
   width = (34/1.2)*2, height = 30/1.2, units = "cm")
 
 # EffSizePlots_ls <- Proxy_ls
@@ -524,20 +532,22 @@ names(plot_ls) <- TopoPlots
 
 for(model_iter in TopoPlots){
   print(model_iter)
+  brms_fam <- ifelse(model_iter %in% c("Modularity", "Nestedness"), 
+                     "normal", "zero_one_inflated_beta")
   iter_df <- model_df[model_df$Topology == model_iter, ]
-  iter_df <- iter_df[which(iter_df$RelChange >= 0 & iter_df$RelChange <= 1),] # necessary for nestedness models
+  # iter_df <- iter_df[which(iter_df$RelChange >= 0 & iter_df$RelChange <= 1),] # necessary for nestedness models
   if(file.exists(file.path(Dir.Exports, paste0("FIG4_MODEL_", model_iter, ".RData")))){
     load(file.path(Dir.Exports, paste0("FIG4_MODEL_", model_iter, ".RData")))
   }else{
-    Casc_brms <- brm(RelChange ~ 0+Proxy*IS*RE, # + (1|netID),
+    Casc_brms <- brm(RelChange ~ 0+Proxy+IS*RE, # + (1|netID),
                      data = iter_df,
-                     family = "zero_one_inflated_beta",
+                     family = brms_fam,
                      chains = 4, cores = 4, thin = 10, iter = 1e4)
     save(Casc_brms, file = file.path(Dir.Exports, paste0("FIG4_MODEL_", model_iter, ".RData")))
   }
   
   Posterior_df <- posterior_samples(Casc_brms)
-  
+  # print(nrow(Posterior_df))
   ProxyIntercept_df <- exp(Posterior_df[, 1:3])
   ProxyIntercept_df <- stats::reshape(ProxyIntercept_df,
                                       direction = "long",
@@ -556,7 +566,10 @@ for(model_iter in TopoPlots){
   
   plot_ls[[model_iter]] <- ggplot(ProxyIntercept_df, aes(x = Posterior, y = Proxy)) +
     stat_halfeye() +
-    theme_bw() + geom_vline(xintercept = 0, col = "red") + labs(title = model_iter)
+    theme_bw() + 
+    # geom_vline(xintercept = 0, col = "red") + 
+    labs(title = model_iter) + 
+    theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
   
   if(model_iter %in% c("n_links", "Nestedness")){
     plot_ls[[model_iter]] <- plot_ls[[model_iter]] + labs(y = NULL)
@@ -566,7 +579,7 @@ for(model_iter in TopoPlots){
 ggsave(
   plot_grid(plotlist = plot_ls), 
   filename = file.path(Dir.Exports, "FIG4_ProxyComparison-ALL.png"), 
-  width = (30/1.2)*2, height = 30/1.2, units = "cm")
+  width = (30/1.2)*2, height = 34/1.2, units = "cm")
 
 # FIGURE 5 - Cascade Comparisons ---------------------------------------------
 print("########## FIGURE 5")
@@ -580,14 +593,16 @@ names(plot_ls) <- TopoPlots
 
 for(model_iter in TopoPlots){
   print(model_iter)
+  brms_fam <- ifelse(model_iter %in% c("Modularity", "Nestedness"), 
+                     "normal", "zero_one_inflated_beta")
   iter_df <- model_df[model_df$Topology == model_iter, ]
-  iter_df <- iter_df[which(iter_df$RelChange >= 0 & iter_df$RelChange <= 1),] # necessary for nestedness models
+  # iter_df <- iter_df[which(iter_df$RelChange >= 0 & iter_df$RelChange <= 1),] # necessary for nestedness models
   if(file.exists(file.path(Dir.Exports, paste0("FIG5_MODEL_", model_iter, ".RData")))){
     load(file.path(Dir.Exports, paste0("FIG5_MODEL_", model_iter, ".RData")))
   }else{
-    Casc_brms <- brm(RelChange ~ 0+Casc*IS*RE + (1|netID),
+    Casc_brms <- brm(RelChange ~ 0+Casc+IS*RE,
                      data = iter_df,
-                     family = "zero_one_inflated_beta",
+                     family = brms_fam,
                      chains = 4, cores = 4, thin = 10, iter = 1e4)
     save(Casc_brms, file = file.path(Dir.Exports, paste0("FIG5_MODEL_", model_iter, ".RData")))
   }
@@ -612,7 +627,10 @@ for(model_iter in TopoPlots){
   
   plot_ls[[model_iter]] <- ggplot(CascIntercept_df, aes(x = Posterior, y = Casacde)) +
     stat_halfeye() +
-    theme_bw() + geom_vline(xintercept = 0, col = "red") + labs(title = model_iter)
+    theme_bw() + 
+    # geom_vline(xintercept = 0, col = "red") + 
+    labs(title = model_iter) + 
+    theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
   
   if(model_iter %in% c("n_links", "Nestedness")){
     plot_ls[[model_iter]] <- plot_ls[[model_iter]] + labs(y = NULL)
@@ -622,12 +640,12 @@ for(model_iter in TopoPlots){
 ggsave(
   plot_grid(plotlist = plot_ls), 
   filename = file.path(Dir.Exports, "FIG5_CascComparison-Climate.png"), 
-  width = (30/1.2)*2, height = 30/1.2, units = "cm")
+  width = (30/1.2)*2, height = 34/1.2, units = "cm")
 
-# FIGURE S10 & S11 - Cascade Comparison Matrices -----------------------------
-print("########## FIGURE S10 & S11")
+# FIGURE S11 & S12 - Cascade Comparison Matrices -----------------------------
+print("########## FIGURE S11 & S12")
 RunNames <- c("Plants", "Animals")
-FigNames <- c("FigS10", "FigS11")
+FigNames <- c("FigS11", "FigS12")
 for(RunIter in 1:2){
   RunName <- RunNames[RunIter]
   FigName <- FigNames[RunIter]
@@ -716,7 +734,7 @@ for(RunIter in 1:2){
 }
 
 
-# FIGURE S12 - Cascade Species Group Vulnerability ---------------------------
+# FIGURE S13 - Cascade Species Group Vulnerability ---------------------------
 ## animals
 Removal_df <- PlotTopo_ls[["Animals"]]$Topology
 Removal_df <- Removal_df[Removal_df$Simulation == "Prediction" &
@@ -787,17 +805,5 @@ x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
                    gp=gpar(fontface="bold", col="black", fontsize=15))
 
 Export_plot <- grid.arrange(arrangeGrob(plot_grid(Pred_gplot, SD_gplot, nrow = 1), left = y.grob, top = x.grob))
-ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS12", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 44/1.2, height = 34/1.2, units = "cm")
+ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS13", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 44/1.2, height = 34/1.2, units = "cm")
 
-
-
-
-# # LINEAR MODELS ============================================================
-# model_df <- do.call(rbind, lapply(PlotTopo_ls, FUN = function(x){x[["Change"]]})) 
-# for(model_iter in TopoPlots){
-#   sink(file = file.path(Dir.Exports, paste0("MODEL_", model_iter, ".txt")))
-#   print(
-#     summary(lm(RelChange ~ 0 + (IS+RE)*Proxy+Casc, data = model_df[model_df$Topology == model_iter, ]))
-#   )
-#   sink()
-# }
