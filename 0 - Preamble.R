@@ -59,6 +59,7 @@ package_vec <- c(
   "tidyverse", # for data handling
   "rgbif", # for occurrence retrieval
   "pbapply", # for apply with progress bar
+  "parallel", # for clusterCall
   "data.table", # for data handling
   "rnaturalearth", # for landmask in projection kriging
   "rnaturalearthdata", # for landmask in projection kriging
