@@ -427,6 +427,7 @@ for(ssp in ssps){
 
 # OCCURRENCE DATA ==========================================================
 message("### OCCURRENCE DATA ###")
+
 ## species for which no data is presented and no data could be obtained previously
 if(file.exists(file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))){
   load(file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
@@ -440,7 +441,7 @@ occ_spec <- c(tools::file_path_sans_ext(occ_fs), NonOcc_spec)
 print("PLANTS")
 plants_spec <- unique(unlist(lapply(List_ls, FUN = function(x){rownames(x)})))
 if(sum(plants_spec %nin% occ_spec) > 0){
-  plants_occ <- occ_data(scientificName = plants_spec[plants_spec %nin% occ_spec])
+  plants_occ <- occ_data(scientificName = plants_spec[plants_spec %nin% occ_spec], limit = 1)
   if(sum(plants_spec %nin% occ_spec) == 1){
     plants_occ <- list(nrow(plants_occ$data)) 
     names(plants_occ) <- plants_spec[plants_spec %nin% occ_spec]
@@ -449,20 +450,20 @@ if(sum(plants_spec %nin% occ_spec) > 0){
   }
   Failed_plants <- names(plants_occ)[which(unlist(plants_occ) == 0)]
   if(length(Failed_plants) != 0){stop("Not all plant species are found on gbif")}
-  plants_gbif <- Gbif_Species(species = plants_spec[plants_occ %nin% occ_spec], year_vec = 1982:1999)
-  if(sum(plants_spec %nin% occ_spec) == 1){
-    plants_gbif <- list(plants_gbif)
-    names(plants_gbif) <- plants_spec[plants_spec %nin% occ_spec]
-  }
+  plants_gbif <- Gbif_Species(species = plants_spec[plants_spec %nin% occ_spec], year_vec = 1982:1999) # DOI: "10.15468/dl.skrwmw"
+  # if(sum(plants_spec %nin% occ_spec) == 1){
+  #   plants_gbif <- list(plants_gbif)
+  #   names(plants_gbif) <- plants_spec[plants_spec %nin% occ_spec]
+  # }
   print("Identifying outliers & saving occurrence data")
-  NonOcc_spec <- c(NonOcc_spec, names(plants_gbif[lapply(plants_gbif, nrow) == 0]))
+  NonOcc_spec <- c(NonOcc_spec, plants_gbif$NonOcc)
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
-  plants_gbif <- plants_gbif[lapply(plants_gbif, nrow) != 0] # remove species for which no records are present
+  # plants_gbif <- plants_gbif[lapply(plants_gbif, nrow) != 0] # remove species for which no records are present
   ## remove species for which 20 records or less are present
-  n_occ <- unlist(lapply(plants_gbif, nrow))
-  NonOcc_spec <- c(NonOcc_spec, names(plants_gbif)[n_occ <= 20])
+  n_occ <- unlist(lapply(plants_gbif$Data, nrow))
+  NonOcc_spec <- c(NonOcc_spec, names(plants_gbif$Data)[n_occ <= 20])
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
-  plants_gbif <- plants_gbif[n_occ > 20]
+  plants_gbif$Data <- plants_gbif$Data[n_occ > 20]
   ## outliers
   # print("Identifying Outliers")
   # hush_ls <- lapply(names(plants_gbif), function(df){
@@ -477,20 +478,32 @@ if(sum(plants_spec %nin% occ_spec) > 0){
   #                                verbose = FALSE)
   # plants_gbif <- split(plants_df, f = plants_df$species)
   ## saving data
-  hush_ls <- pblapply(names(plants_gbif), function(df){
-    x <- plants_gbif[[df]][,-4] # remove species column
+  print("Saving occurrence data")
+  counter <- 0
+  # hush_ls <- pblapply(names(plants_gbif$Data), function(df){ 
+  for(df in names(plants_gbif$Data)){
+    x <- plants_gbif$Data[[df]][,c("species", "decimalLongitude", "decimalLatitude")]  # remove species column
+    x$key <- 1:nrow(x)
     x <- Gbif_Outliers(x = x, Enviro_ras = Enviro_ras, Centroids = Shapes_ct)
-    saveRDS(x, file = file.path(Dir.D.Occurrences, paste0(df, ".rds")))
-  }) 
+    if(nrow(x)<20){
+      NonOcc_spec <- c(NonOcc_spec, df)
+    }else{
+      saveRDS(x, file = file.path(Dir.D.Occurrences, paste0(df, ".rds")))  
+      counter <- counter + 1
+    }
+  }
+  # )
+  save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
+  print(counter)
 }else{
-  print("No new plant species")
+  print("No new plant species") ## 968 species of animals (used to be 1123 before GBIF mangling)
 }
 
 ### Animals ####
 print("ANIMALS")
 animals_spec <- unique(unlist(lapply(List_ls, FUN = function(x){colnames(x)})))
 if(sum(animals_spec %nin% occ_spec) > 0){
-  animals_occ <- occ_data(scientificName = animals_spec[animals_spec %nin% occ_spec])
+  animals_occ <- occ_data(scientificName = animals_spec[animals_spec %nin% occ_spec], limit = 1)
   if(sum(animals_spec %nin% occ_spec) == 1){
     animals_occ <- list(nrow(animals_occ$data)) 
     names(animals_occ) <- animals_spec[animals_spec %nin% occ_spec]
@@ -499,19 +512,20 @@ if(sum(animals_spec %nin% occ_spec) > 0){
   }
   Failed_animals <- names(animals_occ)[which(unlist(animals_occ) == 0)]
   if(length(Failed_animals) != 0){stop("Not all animal species are found on gbif")} 
-  animals_gbif <- Gbif_Species(species = animals_spec[animals_spec %nin% occ_spec], year_vec = 1982:1999)
-  if(sum(animals_spec %nin% occ_spec) == 1){
-    animals_gbif <- list(animals_gbif)
-    names(animals_gbif) <- animals_spec[animals_spec %nin% occ_spec]
-  }
-  NonOcc_spec <- c(NonOcc_spec, names(animals_gbif[lapply(animals_gbif, nrow) == 0]))
+  animals_gbif <- Gbif_Species(species = animals_spec[animals_spec %nin% occ_spec], year_vec = 1982:1999) # DOI: "10.15468/dl.fmujjg"
+  # if(sum(animals_spec %nin% occ_spec) == 1){
+  #   animals_gbif <- list(animals_gbif)
+  #   names(animals_gbif) <- animals_spec[animals_spec %nin% occ_spec]
+  # }
+  print("Identifying outliers & saving occurrence data")
+  NonOcc_spec <- c(NonOcc_spec, animals_gbif$NonOcc)
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
-  animals_gbif <- animals_gbif[lapply(animals_gbif, nrow) != 0] # remove species for which no records are present
+  # animals_gbif <- animals_gbif[lapply(animals_gbif$Data, nrow) != 0] # remove species for which no records are present
   ## remove species for which 20 records or less are present
-  n_occ <- unlist(lapply(animals_gbif, nrow))
-  NonOcc_spec <- c(NonOcc_spec, names(animals_gbif)[n_occ <= 20])
+  n_occ <- unlist(lapply(animals_gbif$Data, nrow))
+  NonOcc_spec <- c(NonOcc_spec, names(animals_gbif$Data)[n_occ <= 20])
   save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
-  animals_gbif <- animals_gbif[n_occ > 20]
+  animals_gbif$Data <- animals_gbif$Data[n_occ > 20]
   ## outliers
   # print("Identifying Outliers")
   # hush_ls <- lapply(names(animals_gbif), function(df){
@@ -527,13 +541,24 @@ if(sum(animals_spec %nin% occ_spec) > 0){
   # animals_gbif <- split(animals_df, f = animals_df$species)
   ## saving data
   print("Saving occurrence data")
-  hush_ls <- pblapply(names(animals_gbif), function(df){
-    x <- animals_gbif[[df]][,-4] # remove species column
+  # hush_ls <- pblapply(names(animals_gbif$Data), function(df){
+  counter <- 0
+  for(df in names(animals_gbif$Data)){
+    x <- animals_gbif$Data[[df]][,c("species", "decimalLongitude", "decimalLatitude")]  # remove species column
+    x$key <- 1:nrow(x)
     x <- Gbif_Outliers(x = x, Enviro_ras = Enviro_ras, Centroids = Shapes_ct)
-    saveRDS(x, file = file.path(Dir.D.Occurrences, paste0(df, ".rds")))
-  }) 
+    if(nrow(x)<20){
+      NonOcc_spec <- c(NonOcc_spec, df)
+    }else{
+      saveRDS(x, file = file.path(Dir.D.Occurrences, paste0(df, ".rds")))  
+      counter <- counter + 1
+    }
+  }
+  # ) 
+  print(counter)
+  save(NonOcc_spec, file = file.path(Dir.D.Occurrences, "NonOcc_spec.RData"))
 }else{
-  print("No new animal species")
+  print("No new animal species") ## 756 species of animals (used to be 793 before GBIF mangling)
 }
 
 print("Loading occurrence data")
@@ -614,7 +639,7 @@ names(ProxClim_ls) <- ssps
 for(ssp in ssps){
   if(!file.exists(file.path(Dir.Data, paste0("Prox_Climate", ssp, ".RData")))){
     Prox.Climate_ls <- pblapply(names(List_ls), function(netID){
-      # print(netID)
+      print(netID)
       ## Species Identities
       Plants_spec <- rownames(List_ls[[netID]])
       Animals_spec <- colnames(List_ls[[netID]])
@@ -682,6 +707,7 @@ IUCN_spec <- names(occ_ls)[names(occ_ls) %nin% Prox.IUCN_df$Species[!is.na(Prox.
 if(length(IUCN_spec) > 0){
   ### Direct IUCN retrieval ----
   print("Direct retrieval of IUCN criteria")
+  ## 1240 species are directly retrieved
   IUCN_ls <- pblapply(IUCN_spec, FUN = function(x){
     rl_search(x, key = IUCN_Key)$result
   }
@@ -697,7 +723,7 @@ if(length(IUCN_spec) > 0){
   ## Calculating IUCN criteria ----
   print("Computation of IUCN criteria where needed")
   Calc_spec <- Prox.IUCN_df$Species[is.na(Prox.IUCN_df$Category)]
-  Calc_ls <- occ_ls[IUCN_spec %in% Calc_spec]
+  Calc_ls <- occ_ls[names(occ_ls) %in% Calc_spec] ## 480 species need IUCN calculations
   Calc_ls <- lapply(names(Calc_ls), FUN = function(x){
     Calc_ls[[x]]$tax <- x
     Calc_ls[[x]]
@@ -705,25 +731,27 @@ if(length(IUCN_spec) > 0){
   Calc_df <- do.call(rbind, Calc_ls)
   Calc_df <- Calc_df[!Calc_df$Out_Enviro & !Calc_df$Out_Centroid, ]
   Calc_df <- as.data.frame(Calc_df)
-  Calc_df <- Calc_df[,-c(1, 4, 5)]
-  colnames(Calc_df) <- c("ddlat", "ddlon", "tax")
+  Calc_df <- Calc_df[,-c(1, 4:6)]
+  colnames(Calc_df) <- c("ddlon", "ddlat", "tax")
+  Calc_df <- data.frame(ddlat = Calc_df$ddlat,
+                        ddlon = Calc_df$ddlon,
+                        tax = Calc_df$tax)
   ## check for which species longitude range does not exceed 180° (a limitation of the Conr package)
   print("Figuring out for which species entire data range can be used and subsequent IUCN criteria computation")
   Longi_check <- pbsapply(unique(Calc_df$tax), FUN = function(i){
+    # print(diff(range(Calc_df$ddlon[Calc_df$tax == i])))
     diff(range(Calc_df$ddlon[Calc_df$tax == i])) >= 180}
   )
-  
-  # save.image(file = "PreIUCNCalculation.RData") ## can be removed when all IUCN criteria have been computeds
-  
-  IUCN_calc <- IUCN.eval(DATA = Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], ], 
+  ## 394 species can be calculated right away
+  IUCN_calc <- IUCN.eval(DATA = Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], ],
                          parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
                          protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
   )
   Prox.IUCN_df$Source[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- "ConR"
   Prox.IUCN_df$Category[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- IUCN_calc$Category_CriteriaB
-  Prox.IUCN_df$N[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- table(Calc_df$tax)
+  Prox.IUCN_df$N[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <-  table(Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], "tax"])
   saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
-  ## limitation of species occurrences to the 180° longitude range for which there is the most data
+  ## limitation of species occurrences to the 180° longitude range for which there is the most data, 86 need to be adjusted
   print("Figuring out for which species parts of the data range need to be used, selecting the most data-rich range, and subsequent IUCN criteria computation")
   Calc_df2 <- Calc_df[Calc_df$tax %in% names(Longi_check)[Longi_check], ]
   for(i in names(Longi_check)[Longi_check]){
@@ -740,7 +768,7 @@ if(length(IUCN_spec) > 0){
   }
   Calc_df2 <- na.omit(Calc_df2)
   IUCN_calc2 <- IUCN.eval(DATA = Calc_df2, 
-                          parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
+                          parallel = FALSE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
                           protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
   )
   Prox.IUCN_df$Source[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- "ConR - Reduced"

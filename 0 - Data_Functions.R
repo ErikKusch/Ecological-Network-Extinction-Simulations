@@ -32,42 +32,29 @@ loadObj <- function(file.name){
 
 # GBIF Occurrences =========================================================
 Gbif_Species <- function(species = NULL, year_vec = 2000:2020){
-  n_species <- length(unique(species))
-  for(k in year_vec){
-    message(paste("Year", k, "/" , max(year_vec)))
-    Gbif <- NA
-    while(is.na(Gbif)){
-      try(Gbif <- occ_data(scientificName = unique(species),
-                           hasGeospatialIssue = FALSE,
-                           hasCoordinate = TRUE,
-                           year = k,
-                           limit = 1e5
-      ))
-    }
-    if(n_species > 1){
-      Data_ls <- lapply(Gbif, '[[', 2) # extract downloaded gbif data into list object, each element corresponds to a genuskey
-      if(k == year_vec[[1]]){
-        Data <- Data_ls
-      }else{
-        Data <- pblapply(X = 1:n_species, FUN = function(x){
-          data.frame(
-            rbindlist(list(Data[[x]],
-                           Data_ls[[x]]),
-                      fill = TRUE)
-          )
-        }
-        )
-      }
-      names(Data) <- names(Data_ls)
-    }else{
-      if(k == year_vec[[1]]){
-        Data <- as.data.frame(Gbif$data)
-      }else{
-        Data <- data.frame(rbindlist(list(Data, as.data.frame(Gbif$data)), fill = TRUE))
-      }
-    }
-  }
-  return(Data)
+  taxonKeys <- pbsapply(species, FUN = function(x){
+    keys <- na.omit(name_backbone(name = x, rank = "species", verbose = TRUE)$speciesKey)
+    keys[1]
+  })
+  res <- occ_download(
+    pred_in("taxonKey", as.numeric(unlist(taxonKeys))),
+    pred_not(pred("basisOfRecord", "FOSSIL_SPECIMEN")),
+    pred("occurrenceStatus", "PRESENT"),
+    pred("hasCoordinate", TRUE),
+    pred("hasGeospatialIssue", FALSE),
+    pred_gte("year", min(year_vec)),
+    pred_lte("year", max(year_vec))
+  )
+  print(occ_download_meta(res)$doi)
+  # Downloading and Loading
+  res_meta <- occ_download_wait(res, status_ping = 600, curlopts = list(), quiet = FALSE)
+  res_get <- occ_download_get(res, overwrite = TRUE)
+  Gbif <- occ_download_import(res_get)
+  
+  Data <- split(Gbif, f = Gbif$speciesKey)
+  names(Data) <- names(taxonKeys)[match(names(Data), as.character(taxonKeys))]
+  
+  return(list(Data = Data, NonOcc = species[species %nin% names(Data)]))
 }
 
 # GBIF Outliers ============================================================
@@ -107,19 +94,25 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
   pb <- txtProgressBar(min = 0, max = length(spec_vec), style = 3)
   
   for(spec in spec_vec){
+    
     occ_iter <- occ_spd[occ_spd$spec == spec, ]
     if(Outliers){
-      NonOut_pos <- rowSums(as.data.frame(occ_iter)[, 4:5]) == 0 # 4:5 are the outlier colums here
+      NonOut_pos <- rowSums(as.data.frame(occ_iter)[, c("Out_Enviro", "Out_Centroid")]) == 0 
       occ_iter <- occ_iter[NonOut_pos,]
     }
     extract_df <- na.omit(raster::extract(Enviro_ras, occ_iter))
+    print(paste(spec, nrow(extract_df), sep = " - "))
     values_df <- data.frame(
       X1 = NA,
       X2 = NA
     )
-    for(i in 1:Boot){
-      rows <- sample(x = 1:nrow(extract_df), size = round(nrow(extract_df)*0.7), replace = TRUE)
-      values_df <- rbind(values_df, extract_df[rows, ])
+    if(nrow(extract_df)<1e4){ #bootstrap only when there are less than 1e4 useable locations - this saves RAM
+      for(i in 1:Boot){
+        rows <- sample(x = 1:nrow(extract_df), size = round(nrow(extract_df)*0.7), replace = TRUE)
+        values_df <- rbind(values_df, extract_df[rows, ])
+      } 
+    }else{
+      values_df <- extract_df
     }
     values_df <- na.omit(values_df)
     
@@ -206,7 +199,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                        cl = cl,
                        function(y){
                          # print(x)
-                         # y <- names(AnalysisData_ls)[1]
+                         # y <- names(AnalysisData_ls)[7]
                          message(y)
                          x <- AnalysisData_ls[[y]]
                          
@@ -286,7 +279,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          proxcen <- x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, CutOffs$Strength)] # just eliminate upper 25% quantile
                          primext_namesS <- names(proxcen)
                          primext_order <- match(primext_namesS, rownames(x$Adjacency))
-                         CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA))
+                         CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA, NA, NA))
+                         names(CustOrder_ExtS) <- names(ExtS_Rand) <- c("sims", "R50", "R100", "Network")
                          if("Strength" %in% WHICH){
                            print("Strength")
                            CustOrder_ExtS <- SimulateExtinctions(Network = net, 
@@ -300,8 +294,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                  # RewiringDist = dist_mat, #
                                                                  ### Probability matrix-driven block
                                                                  RewiringDist = prob_mat, # 
-                                                                 RewiringProb = Rewiring
-                           )
+                                                                 RewiringProb = Rewiring,
+                                                                 forceFULL = TRUE)
                            ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                           parallel = FALSE, ncores = parallel::detectCores(), 
                                                           SimNum = length(proxcen),
@@ -313,7 +307,12 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                           # RewiringDist = dist_mat, #
                                                           ### Probability matrix-driven block
                                                           RewiringDist = prob_mat, # 
-                                                          RewiringProb = Rewiring)
+                                                          RewiringProb = Rewiring,
+                                                          forceFULL = TRUE)
+                           ExtS_Rand <- list(sims = ExtS_Rand$sims,
+                                             R50 = ExtS_Rand$R50result,
+                                             R50 = ExtS_Rand$R100result,
+                                             Network = ExtS_Rand$nets)
                            # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
                          }
                          
@@ -321,7 +320,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          # print("Extinction of Threatened Species (Climate Projections)")
                          primext_namesC <- names(x$prox_climate)[x$prox_climate > CutOffs$Climate] # random cutoff of climate risk severity selected here
                          primext_order <- match(primext_namesC, rownames(x$Adjacency))
-                         CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
+                         CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA, NA, NA))
+                         names(CustOrder_ExtC) <- names(ExtC_Rand) <- c("sims", "R50", "R100", "Network")
                          if("Climate" %in% WHICH){
                            if(length(primext_namesC) != 0){
                              print("Climate")
@@ -336,7 +336,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    # RewiringDist = dist_mat, #
                                                                    ### Probability matrix-driven block
                                                                    RewiringDist = prob_mat, # 
-                                                                   RewiringProb = Rewiring
+                                                                   RewiringProb = Rewiring,
+                                                                   forceFULL = TRUE
                              )
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
@@ -349,8 +350,13 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                             # RewiringDist = dist_mat, #
                                                             ### Probability matrix-driven block
                                                             RewiringDist = prob_mat, # 
-                                                            RewiringProb = Rewiring
+                                                            RewiringProb = Rewiring,
+                                                            forceFULL = TRUE
                              )
+                             ExtC_Rand <- list(sims = ExtC_Rand$sims,
+                                               R50 = ExtC_Rand$R50result,
+                                               R50 = ExtC_Rand$R100result,
+                                               Network = ExtC_Rand$nets)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -360,8 +366,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          if("SSP585" %in% WHICH){
                            primext_namesC <- names(x$prox_climateSSP585)[x$prox_climateSSP585 > CutOffs$Climate] # random cutoff of climate risk severity selected here
                            primext_order <- match(primext_namesC, rownames(x$Adjacency))
-                           CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA))
-                           
+                           CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA, NA, NA))
+                           names(CustOrder_ExtC) <- names(ExtC_Rand) <- c("sims", "R50", "R100", "Network")
                            if(length(primext_namesC) != 0){
                              print("Climate")
                              CustOrder_ExtC <- SimulateExtinctions(Network = net, 
@@ -375,7 +381,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    # RewiringDist = dist_mat, #
                                                                    ### Probability matrix-driven block
                                                                    RewiringDist = prob_mat, # 
-                                                                   RewiringProb = Rewiring
+                                                                   RewiringProb = Rewiring,
+                                                                   forceFULL = TRUE
                              )
                              ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
@@ -388,8 +395,13 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                             # RewiringDist = dist_mat, #
                                                             ### Probability matrix-driven block
                                                             RewiringDist = prob_mat, # 
-                                                            RewiringProb = Rewiring
+                                                            RewiringProb = Rewiring,
+                                                            forceFULL = TRUE
                              )
+                             ExtC_Rand <- list(sims = ExtC_Rand$sims,
+                                               R50 = ExtC_Rand$R50result,
+                                               R50 = ExtC_Rand$R100result,
+                                               Network = ExtC_Rand$nets)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -398,7 +410,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          # print("Extinction of Threatened Species (IUCN Categories)")
                          primext_namesI <- names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN] # random cutoff of climate risk severity selected here
                          primext_order <- match(primext_namesI, rownames(x$Adjacency))
-                         CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA))
+                         CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA, NA, NA))
+                         names(CustOrder_ExtI) <- names(ExtI_Rand) <- c("sims", "R50", "R100", "Network")
                          if("IUCN" %in% WHICH){
                            print("IUCN")
                            if(length(primext_namesI) != 0){
@@ -413,7 +426,8 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    # RewiringDist = dist_mat, #
                                                                    ### Probability matrix-driven block
                                                                    RewiringDist = prob_mat, # 
-                                                                   RewiringProb = Rewiring
+                                                                   RewiringProb = Rewiring,
+                                                                   forceFULL = TRUE
                              )
                              ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
                                                             parallel = FALSE, ncores = parallel::detectCores(), 
@@ -426,8 +440,13 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                             # RewiringDist = dist_mat, #
                                                             ### Probability matrix-driven block
                                                             RewiringDist = prob_mat, # 
-                                                            RewiringProb = Rewiring
+                                                            RewiringProb = Rewiring,
+                                                            forceFULL = TRUE
                              )
+                             ExtI_Rand <- list(sims = ExtI_Rand$sims,
+                                               R50 = ExtI_Rand$R50result,
+                                               R50 = ExtI_Rand$R100result,
+                                               Network = ExtI_Rand$nets)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
                          }
@@ -436,39 +455,53 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          # print(nrow(as.matrix(CustOrder_ExtI[[2]])))
                          # as.matrix(CustOrder_ExtI[[2]])
                          Fun.Save <- function(x = CustOrder_ExtI, y = ExtI_Rand){
-                           if(nrow(as.matrix(x[[2]])) != 1){
-                             # message("################## Saving IUCN ######################")
-                             Pred <- as.matrix.network.adjacency(x[[2]], 
-                                                                 attrname = "weight")
-                             Rand <- lapply(y$nets, as.matrix.network.adjacency,
-                                            attrname = "weight") 
+                           
+                           ## This happens when no simulation was run
+                           if(sum(is.na(as.matrix(x$Network))) != 0){
+                             Pred <- as.matrix(NA)
+                             Rand <- as.matrix(NA)
                            }else{
-                             if(class(x[[2]]) == "network"){
-                               if(!is.na(get.vertex.attribute(x[[2]], "vertex.names "))){
-                                 # message("################## Saving IUCN ######################")
-                                 Pred <- as.matrix.network.adjacency(x[[2]], 
-                                                                     attrname = "weight")
-                                 Rand <- lapply(y$nets, as.matrix.network.adjacency,
-                                                attrname = "weight") 
-                               }else{
-                                 Pred <- as.matrix(x[[2]])
-                                 Rand <- lapply(y$nets, as.matrix) 
-                               } 
+                             ## this is complete network annihilation, if this happens, we manually assign a zero-matrix
+                             if(sum(as.matrix.network.adjacency(x$Network, attrname = "weight")) == 0 | 
+                                nrow(as.matrix(x$Network)) == 1){
+                               Pred <- as.matrix(0)
                              }else{
-                               if(!is.na(x[[2]])){
-                                 # message("################## Saving IUCN ######################")
-                                 Pred <- as.matrix.network.adjacency(x[[2]], 
-                                                                     attrname = "weight")
-                                 Rand <- lapply(y$nets, as.matrix.network.adjacency,
-                                                attrname = "weight") 
-                               }else{
-                                 Pred <- as.matrix(x[[2]])
-                                 Rand <- lapply(y$nets, as.matrix) 
-                               }
+                               Pred <- as.matrix.network.adjacency(x$Network, attrname = "weight")
                              }
-                             
-                             
+                             Rand <- lapply(y$Network, as.matrix.network.adjacency, attrname = "weight") 
+                             Rand[unlist(lapply(Rand, sum)) == 0 | 
+                                    unlist(lapply(Rand, FUN = function(k){nrow(as.matrix(k))})) == 1] <- as.matrix(0) 
                            }
+                           # if(nrow(as.matrix(x$Network)) != 1){
+                           #   Pred <- as.matrix.network.adjacency(x$Network, 
+                           #                                       attrname = "weight")
+                           #   Rand <- lapply(y$Network, as.matrix.network.adjacency,
+                           #                  attrname = "weight") 
+                           # }else{
+                           #   if(class(x$Network) == "network"){
+                           #     if(!is.na(get.vertex.attribute(x$Network, "vertex.names "))){
+                           #       Pred <- as.matrix.network.adjacency(x$Network, 
+                           #                                           attrname = "weight")
+                           #       Rand <- lapply(y$Network, as.matrix.network.adjacency,
+                           #                      attrname = "weight") 
+                           #     }else{
+                           #       Pred <- as.matrix(x$Network)
+                           #       Rand <- lapply(y$Network, as.matrix) 
+                           #     } 
+                           #   }else{
+                           #     if(!is.na(x$Network)){
+                           #       Pred <- as.matrix.network.adjacency(x$Network, 
+                           #                                           attrname = "weight")
+                           #       Rand <- lapply(y$Network, as.matrix.network.adjacency,
+                           #                      attrname = "weight") 
+                           #     }else{
+                           #       Pred <- as.matrix(x$Network)
+                           #       Rand <- lapply(y$Network, as.matrix) 
+                           #     }
+                           # }
+                           
+                           
+                           # }
                            return(list(Pred = Pred, Rand = Rand))
                          }
                          
@@ -515,9 +548,10 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     return(Save_ls)
   }else{
     ## Topology Calculation
-    PostExt_ls <- pblapply(names(Sim_ls), 
+    PostExt_ls <- pblapply(names(Sim_ls),
                            cl = cl,
                            FUN = function(netID){
+                             # netID <- names(Sim_ls)[1]
                              print(netID)
                              Storage_ls <- list(Strength = list(Removed = NA, Prediction = NA, Random = NA),
                                                 Climate = list(Removed = NA, Prediction = NA, Random = NA),
@@ -543,15 +577,20 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     
     
     ## Topology Extraction
-    Topo_ls <- list(Strength = NA,
-                    Climate = NA,
-                    IUCN = NA
-                    # ,
-                    # IUCN_Climate = NA
-    )
-    for(k in c("Strength", "Climate", "IUCN"
-               # , "IUCN_Climate"
-    )){
+    if(RunName == "SSP585"){
+      Topo_ls <- list(Climate = NA
+      )
+    }else{
+      Topo_ls <- list(Strength = NA,
+                      Climate = NA,
+                      IUCN = NA
+                      # ,
+                      # IUCN_Climate = NA
+      )
+    }
+    
+    for(k in names(Topo_ls)){
+      # k <- names(Topo_ls)[3]
       # print(k)
       Rem_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Removed"))
       Pred_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Prediction"))
@@ -581,17 +620,20 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     }
     Topo_df <- do.call(rbind, Topo_ls)
     ## Effect size calculation
-    MeanPred <- aggregate(.~netID+Proxy+Simulation, FUN = mean, data = Topo_df[Topo_df$Simulation == "Prediction",])
-    MeanRand <- aggregate(.~netID+Proxy+Simulation, FUN = mean, data = Topo_df[Topo_df$Simulation == "Random",])
-    SDRand <- aggregate(.~netID+Proxy+Simulation, FUN = sd, data = Topo_df[Topo_df$Simulation == "Random",])
+    MeanPred <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Prediction",],
+                          FUN = mean, na.rm = TRUE, na.action=NULL)
+    MeanRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
+                          FUN = mean, na.rm = TRUE, na.action=NULL)
+    SDRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
+                        FUN = sd, na.rm = TRUE, na.action=NULL)
     Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
     Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
-    Eff_df <-  Merge1_df[,4:ncol(MeanPred)] - # mean predictions
-      Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-4)]  # mean randoms
+    Eff_df <-  Merge1_df[,4:(ncol(MeanPred)-1)] - # mean predictions
+      Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-5)]  # mean randoms
     Eff_df$netID <- Merge1_df$netID
     Eff_df$Proxy <- Merge1_df$Proxy
     
-    EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):ncol(Merge1_df)]
+    EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):(ncol(Merge1_df)-1)]
     EffSD_df$netID <- Merge1_df$netID
     EffSD_df$Proxy <- Merge1_df$Proxy
     colnames(Eff_df) <- colnames(EffSD_df)

@@ -14,7 +14,7 @@ set.seed(42)
 
 ## Sourcing -------------------------------------------------------------
 source("0 - Preamble.R")
-source("X - NetworkExtinctionFunsRewiring.R")
+# source("X - NetworkExtinctionFunsRewiring.R")
 source("0 - Data_Functions.R")
 
 message("########### STARTING ANALYSIS AND EXTINCTION SIMULATION ###########")
@@ -183,8 +183,10 @@ parallel::clusterExport(cl,
                         varlist = c('FUN_Topo', "CutOffs",  "AnalysisData_ls", 
                                     "animals_gowdis", "plants_gowdis", "plants_sp", "animals_sp", 
                                     "RewClass_ls", "meta_df",
-                                    "install.load.package", "package_vec", 
-                                    ".DataInit", "SimulateExtinctions", "RandomExtinctions", "ExtinctionOrder"),
+                                    "install.load.package", "package_vec"
+                                    # ,
+                                    # ".DataInit", "SimulateExtinctions", "RandomExtinctions", "ExtinctionOrder"
+                                    ),
                         envir = environment()
 )
 clusterpacks <- clusterCall(cl, function() sapply(package_vec, install.load.package))
@@ -222,8 +224,8 @@ if(all(unlist(
   PlotTopoClimSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
 }else{
   ## Extinction Simulations ---------------------------------------------
-  for(Rewiring_Iter in seq(0,  1, 0.05)){
-    for(IS_iter in seq(0, 1, 0.05)){
+  for(Rewiring_Iter in rev(seq(0,  1, 0.05))){
+    for(IS_iter in rev(seq(0, 1, 0.05))){
       Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL",
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
@@ -249,10 +251,7 @@ if(all(unlist(
                                   IS = IS_iter, Rewiring = Rewiring_Iter, CutOffs = CutOffs)
     }
   }
-  
-  # ## Sensitivity Analysis ---------------------------------------------
-  # message("Sensitivity analysis for WHICH = 'Strength' in FUN_SimComp.")
-  
+
   ## Topology Loading and Storing as one object -------------------------
   ## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
   PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs, Pre = PreExt_df)

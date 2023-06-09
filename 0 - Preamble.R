@@ -80,10 +80,26 @@ package_vec <- c(
   "ggvenn", # for venn diagrams
   "randomForest", # for classification of associations potential
   "brms", # for post-simulation bayesian models with zero-inflated beta
-  "tidybayes" # for brms output visualisations
+  "tidybayes", # for brms output visualisations
+  "NetworkExtinction" # for network extinction simulations
 )
 sapply(package_vec, install.load.package)
 
+
+if(as.character(options("gbif_user")) == "NULL" ){
+  Register <- readline(prompt = "Please enter your GBIF user name")
+  options(gbif_user = Register)
+}
+
+if(as.character(options("gbif_email")) == "NULL" ){
+  Register <- readline(prompt = "Please enter your GBIF email")
+  options(gbif_email = Register)
+}
+
+if(as.character(options("gbif_user")) == "NULL" ){
+  Register <- readline(prompt = "Please enter your GBIF password")
+  options(gbif_pwd = "Register")
+}
 
 # FUNCTIONALITY =============================================================
 `%nin%` <- Negate(`%in%`)
