@@ -176,8 +176,8 @@ CutOffs <- list(Strength = 0.75,
                 IUCN = 5)
 
 message("### REGISTERING CLUSTER")
-nCores <- ifelse(parallel::detectCores()>length(AnalysisData_ls),
-                 length(AnalysisData_ls), parallel::detectCores())
+nCores <- ifelse(parallel::detectCores()>(length(AnalysisData_ls)/2),
+                 (length(AnalysisData_ls)/2), parallel::detectCores())
 cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
 parallel::clusterExport(cl,
                         varlist = c('FUN_Topo', "CutOffs",  "AnalysisData_ls", 
