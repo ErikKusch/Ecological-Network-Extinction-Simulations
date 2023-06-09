@@ -27,6 +27,7 @@ CreateDir <- sapply(ExportDirs, function(x) if(!dir.exists(x)) dir.create(x))
 rm(list = c("CreateDir", "ExportDirs", "DataDirs"))
 
 # PACKAGES ================================================================
+try(source("X - PersonalSettings.R")) 
 
 ## KrigR ------------------------------------------------------------------
 if("KrigR" %in% rownames(installed.packages()) == FALSE){ # KrigR check
@@ -34,7 +35,6 @@ if("KrigR" %in% rownames(installed.packages()) == FALSE){ # KrigR check
   devtools::install_github("https://github.com/ErikKusch/KrigR", force = TRUE)
 }
 library(KrigR)
-try(source("X - PersonalSettings.R")) # I do this here to specify number of cores and API credentials and am thus not sharing this file
 # CDS API (needed for ERA5-Land downloads)
 if(!exists("API_Key") | !exists("API_User")){ # CS API check: if CDS API credentials have not been specified elsewhere
   API_User <- readline(prompt = "Please enter your Climate Data Store API user number and hit ENTER.")
