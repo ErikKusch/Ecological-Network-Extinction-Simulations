@@ -1,17 +1,15 @@
 # Ignore everything
 *
-
 # But not these files...
 !.gitignore
-
 # ...even if they are in subdirectories
 !*/
 !*/*/
 !*/*/*/
 !*.R
 !*.stan
-
 X - PersonalSettings.R
-
+/Logo
+/Manuscripts
 
 .Rproj.user
