@@ -19,7 +19,7 @@ source("2 - Extinction Simulation.R")
 message("### DATA PREPARATION ###")
 
 ## Target Metrics ----------------------------------------------------------
-TopoPlots <- c("n_species", "n_links", "Modularity", "Nestedness") # "n_species", "n_animals", "n_plants", "Modularity", "n_links", "Nestedness"
+TopoPlots <- c("n_species", "n_links") # "n_species", "n_links, "n_animals", "n_plants", "Modularity", "Nestedness"
 
 ## Data Loading ------------------------------------------------------------
 load(file.path(Dir.Data, "Networks.RData")) 
@@ -229,12 +229,12 @@ png(filename = file.path(Dir.Exports, "FIG2_Arias-Arone_2016_1-1.png"), width = 
 plot.Concept(g2 = Post11_igraph)
 dev.off()
 
-# FIGURE 2, S6, S7, S8, S9 - Multi-Network Resilience Landscape -------------
-print("########## FIGURE 3, S6, S7, S8, S9")
+# FIGURE 3, S7, S8, S9 - Multi-Network Resilience Landscape -------------
+print("########## FIGURE 3, S7, S8, S9")
 
 ### Effects relative to pre-extinction network topology ----
-MeanNames <- c("FIGS8", "FIGS7", "FIG3", "FIGS9")
-SDNames <- c("FIGS8", "FIGS7", "FIGS6", "FIGS9")
+MeanNames <- c("FIGS8", "FIG3", "FIGS7", "FIGS9")
+SDNames <- c("FIGS8", "FIG3", "FIGS7", "FIGS9")
 RunName = "ALL"
 # for(RunName in names(PlotTopo_ls)){
 Change_df <- PlotTopo_ls[[RunName]]$Change
@@ -279,7 +279,7 @@ for(proxy_enum in 1:length(unique(Change_df$Proxy))){
     matplot_ls$Pred[[TopoIter]] <- ggplot(plot_df2, aes(x = RE, y = IS)) +
       geom_tile(aes(fill = RelChange)) +
       coord_fixed() + 
-      facet_wrap(~Proxy+Topology, ncol = 1) + 
+      facet_wrap(~Proxy+Topology, ncol = 2) + 
       theme_bw() + 
       # xlab("Probability of Rewiring Required to Realise Novel Links") + 
       # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
@@ -301,7 +301,7 @@ for(proxy_enum in 1:length(unique(Change_df$Proxy))){
     matplot_ls$SD[[TopoIter]] <- ggplot(sd_df2, aes(x = RE, y = IS)) +
       geom_tile(aes(fill = RelChange)) +
       coord_fixed() +
-      facet_wrap(~Proxy+Topology, ncol = 1) + 
+      facet_wrap(~Proxy+Topology, ncol = 2) + 
       theme_bw() + 
       # xlab("Probability of Rewiring Required to Realise Novel Links") + 
       # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
@@ -325,30 +325,31 @@ for(proxy_enum in 1:length(unique(Change_df$Proxy))){
   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links", 
                      gp=gpar(fontface="bold", col="black", fontsize=15))
   
-  MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 2)
-  MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, bottom = x.grob))
-  MatSD_plot <- plot_grid(plotlist = matplot_ls$SD, nrow = 2)
-  MatSD_plot <- grid.arrange(arrangeGrob(MatSD_plot, left = y.grob, bottom = x.grob))
+  MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 1)
+  # MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, bottom = x.grob))
+  MatSD_plot <- plot_grid(plotlist = matplot_ls$SD, nrow = 1)
+  # MatSD_plot <- grid.arrange(arrangeGrob(MatSD_plot, left = y.grob, bottom = x.grob))
   
-  if(proxy_enum == 3){
-    ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(
-      MeanNames[proxy_enum], 
-      "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 34/1.2, height = 32/1.2, units = "cm")
-    ggsave(MatSD_plot, filename = file.path(Dir.Exports, paste0(
-      SDNames[proxy_enum], 
-      "_MatrixChange_SD-", RunName, "-", proxy_iter, ".png")), width = 34/1.2, height = 32/1.2, units = "cm") 
-    Proxy_ls[[proxy_iter]] <- matplot_ls 
-  }else{
-    ggsave(plot_grid(MatPred_plot, MatSD_plot, labels = "auto"), 
+  MatComb_plot <- plot_grid(MatPred_plot, MatSD_plot, ncol = 1, labels = "")
+  MatComb_plot <- grid.arrange(arrangeGrob(MatComb_plot, left = y.grob, bottom = x.grob))
+  
+  # if(proxy_enum == 3){
+  #   ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(
+  #     MeanNames[proxy_enum], 
+  #     "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 34/1.2, height = 32/1.2, units = "cm")
+  #   ggsave(MatSD_plot, filename = file.path(Dir.Exports, paste0(
+  #     SDNames[proxy_enum], 
+  #     "_MatrixChange_SD-", RunName, "-", proxy_iter, ".png")), width = 34/1.2, height = 32/1.2, units = "cm") 
+  #   Proxy_ls[[proxy_iter]] <- matplot_ls 
+  # }else{
+    ggsave(MatComb_plot, 
            filename = file.path(Dir.Exports, paste0(MeanNames[proxy_enum], 
-                                                    "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 34/0.6, height = 32/1.2, units = "cm") 
+                                                    "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 32/1.2, height = 30/1.2, units = "cm") 
     Proxy_ls[[proxy_iter]] <- matplot_ls 
-  }
-  
+  # }
 }
 # RelChangePlots_ls <- Proxy_ls
 # }
-
 
 # FIGURE S4 - Network Data Locations -----------------------------------------
 print("########## FIGURE S4")
@@ -498,17 +499,17 @@ for(proxy_iter in unique(Plot_df$Pry)){
                      gp=gpar(fontface="bold", col="black", fontsize=25), rot=90)
   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
                      gp=gpar(fontface="bold", col="black", fontsize=25))
-  MatPred_plot <- plot_grid(plotlist = ES_ls[[proxy_iter]], nrow = 2)
+  MatPred_plot <- plot_grid(plotlist = ES_ls[[proxy_iter]], nrow = 1)
   ES_ls[[proxy_iter]] <- MatPred_plot
 }
 
-ggsave(ES_ls[[1]],
+ggsave(ES_ls$Climate,
        width = 34/1.2, height = 30/1.2, units = "cm",
        filename = file.path(Dir.Exports, paste0("FIGS10A_EffectSizes-", RunName, ".png"))
 )
 
 ggsave(
-  plot_grid(plotlist = ES_ls[-1], nrow = 1), 
+  plot_grid(plotlist = ES_ls[c("IUCN", "Strength")], nrow = 1), 
   filename = file.path(Dir.Exports, paste0("FIGS10B+C_EffectSizes-", RunName, ".png")), 
   width = (34/1.2)*2, height = 30/1.2, units = "cm")
 
@@ -523,6 +524,10 @@ ggsave(
 # FIGURE 4 - Proxy Comparisons -----------------------------------------------
 print("########## FIGURE 4")
 model_df <- do.call(rbind, lapply(PlotTopo_ls, FUN = function(x){x[["Change"]]}))
+model2_df <- PlotTopoClimSSP585_ls$Change
+model2_df$Casc <- "ALL"
+model2_df$Proxy <- "SSP585"
+model_df <- rbind(model_df, model2_df)
 model_df <- model_df[model_df$Casc == "ALL", ]
 model_df$Proxy <- factor(model_df$Proxy)
 model_df$netID <- factor(model_df$netID)
@@ -683,51 +688,53 @@ for(RunIter in 1:2){
     matplot_ls$Pred[[TopoIter]] <- ggplot(plot_df2, aes(x = RE, y = IS)) +
       geom_tile(aes(fill = RelChange)) +
       coord_fixed() +
-      facet_wrap(~Proxy, ncol = 1) +
+      facet_wrap(~Proxy, ncol = 3) +
       theme_bw() +
       # xlab("Probability of Rewiring Required to Realise Novel Links") +
       # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
       xlab("") +
       ylab("") +
-      guides(fill = guide_colourbar(barwidth = 15,
-                                    barheight = 1.5,
-                                    title = "Proportional Network Metric Change",
+      guides(fill = guide_colourbar(barwidth = 1.5,
+                                    barheight = 12,
+                                    title = "", #Proportional Network \n Metric Change
                                     title.position = "bottom",
                                     # direction = "horizontal",
                                     legend.location = "bottom")) +
-      scale_fill_gradient2("Mean", low = "#D55E00", high = "#009E73") + 
-      theme(legend.position = "bottom") + ggtitle(TopoPlots[TopoIter]) 
+      scale_fill_gradient2("SD", low = "#D55E00", high = "#009E73") + 
+      # theme(legend.position = "bottom") + 
+      ggtitle(TopoPlots[TopoIter]) 
     # +
     #   theme(plot.margin = unit(c(0,0,0,0), "lines"))
     
     matplot_ls$SD[[TopoIter]] <- ggplot(sd_df2, aes(x = RE, y = IS)) +
       geom_tile(aes(fill = RelChange)) +
       coord_fixed() +
-      facet_wrap(~Proxy, ncol = 1) +
+      facet_wrap(~Proxy, ncol = 3) +
       theme_bw() +
       # xlab("Probability of Rewiring Required to Realise Novel Links") +
       # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
       xlab("") +
       ylab("") +
-      guides(fill = guide_colourbar(barwidth = 15,
-                                    barheight = 1.5,
-                                    title = "Proportional Network Metric Change",
+      guides(fill = guide_colourbar(barwidth = 1.5,
+                                    barheight = 12,
+                                    title = "", #Proportional Network \n Metric Change
                                     title.position = "bottom",
                                     # direction = "horizontal",
                                     legend.location = "bottom")) +
       scale_fill_gradient2("SD", low = "#D55E00", high = "#009E73") + 
-      theme(legend.position = "bottom") + ggtitle(TopoPlots[TopoIter]) 
+      # theme(legend.position = "bottom") + 
+      ggtitle(TopoPlots[TopoIter]) 
     # +
     #   theme(plot.margin = unit(c(0,0,0,0), "lines"))
   }
   y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence",
-                     gp=gpar(fontface="bold", col="black", fontsize=15), rot=90)
+                     gp=gpar(fontface="bold", col="black", fontsize=12), rot=90)
   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
-                     gp=gpar(fontface="bold", col="black", fontsize=15))
+                     gp=gpar(fontface="bold", col="black", fontsize=12))
   
-  MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 1)
-  MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, top = x.grob))
-  ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(FigName, "_MatrixChange", RunName, "-ComparedtoALL.png")), width = 44/1.2, height = 34/1.2, units = "cm")
+  MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 2)
+  MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, bottom = x.grob))
+  ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(FigName, "_MatrixChange", RunName, "-ComparedtoALL.png")), width = 28/1.2, height = 22/1.2, units = "cm")
   # MatSD_plot <- plot_grid(plotlist = matplot_ls$SD, nrow = 1)
   # MatSD_plot <- grid.arrange(arrangeGrob(MatSD_plot, left = y.grob, top = x.grob))
   # ggsave(MatSD_plot, filename = file.path(Dir.Exports, paste0("PLOT_MatrixChange_SD", RunName, "-ComparedtoALL.png")), width = 44/1.2, height = 34/1.2, units = "cm")
@@ -805,5 +812,5 @@ x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
                    gp=gpar(fontface="bold", col="black", fontsize=15))
 
 Export_plot <- grid.arrange(arrangeGrob(plot_grid(Pred_gplot, SD_gplot, nrow = 1), left = y.grob, top = x.grob))
-ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS13", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 44/1.2, height = 34/1.2, units = "cm")
+ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS13", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 40/1.2, height = 34/1.2, units = "cm")
 
