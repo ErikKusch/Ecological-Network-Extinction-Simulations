@@ -178,7 +178,7 @@ CutOffs <- list(Strength = 0.75,
 message("### REGISTERING CLUSTER")
 nCores <- ifelse(parallel::detectCores()>(length(AnalysisData_ls)/2),
                  (length(AnalysisData_ls)/2), parallel::detectCores())
-cl <- parallel::makeCluster(nCores) # for parallel pbapply functions
+cl <- parallel::makeCluster(as.integer(nCores)+1) # for parallel pbapply functions
 parallel::clusterExport(cl,
                         varlist = c('FUN_Topo', "CutOffs",  "AnalysisData_ls", 
                                     "animals_gowdis", "plants_gowdis", "plants_sp", "animals_sp", 
@@ -224,8 +224,8 @@ if(all(unlist(
   PlotTopoClimSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
 }else{
   ## Extinction Simulations ---------------------------------------------
-  for(Rewiring_Iter in rev(seq(0,  1, 0.05))){
-    for(IS_iter in rev(seq(0, 1, 0.05))){
+  for(Rewiring_Iter in seq(0,  1, 0.05)){
+    for(IS_iter in seq(0, 1, 0.05)){
       Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL",
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
