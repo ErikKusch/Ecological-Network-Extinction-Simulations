@@ -555,7 +555,7 @@ for(model_iter in TopoPlots){
   
   Posterior_df <- posterior_samples(Casc_brms)
   # print(nrow(Posterior_df))
-  ProxyIntercept_df <- exp(Posterior_df[, 1:4])
+  ProxyIntercept_df <- inv_logit_scaled(Posterior_df[, 1:4]) #exp
   ProxyIntercept_df <- stats::reshape(ProxyIntercept_df,
                                       direction = "long",
                                       varying = colnames(ProxyIntercept_df),
@@ -574,7 +574,24 @@ for(model_iter in TopoPlots){
                                   pattern = "b_ProxyIUCN", replacement = "IUCN")
   ProxyIntercept_df$NetworkMetric <- model_iter
   
-  Plotting_df <- rbind(Plotting_df, ProxyIntercept_df)
+  ISRE_df <- inv_logit_scaled(Posterior_df[, c("b_IS", "b_RE", "b_IS:RE")])
+  ISRE_df <- stats::reshape(ISRE_df,
+                                      direction = "long",
+                                      varying = colnames(ISRE_df),
+                                      times = colnames(ISRE_df),
+                                      timevar = "Proxy",
+                                      v.names = "Posterior",
+  )
+  ISRE_df$Parameter = "Resilience"
+  ISRE_df$Proxy <- gsub(ISRE_df$Proxy,
+                                  pattern = "b_IS", replacement = "LLS")
+  ISRE_df$Proxy <- gsub(ISRE_df$Proxy,
+                                  pattern = "b_RE", replacement = "RPT")
+  ISRE_df$Proxy <- gsub(ISRE_df$Proxy,
+                                  pattern = "LLS:RE", replacement = "Interaction")
+  ISRE_df$NetworkMetric <- model_iter
+  
+  Plotting_df <- rbind(Plotting_df, ProxyIntercept_df, ISRE_df)
   
   # plot_ls[[model_iter]] <- ggplot(ProxyIntercept_df, aes(x = Posterior, 
   #                                                        y = Proxy)) +
@@ -588,26 +605,28 @@ for(model_iter in TopoPlots){
   #   plot_ls[[model_iter]] <- plot_ls[[model_iter]] + labs(y = NULL)
   # }
 }
-
 Plotting_df <- Plotting_df[-1,]
 Plotting_df$Proxy <- factor(Plotting_df$Proxy, 
-                                  levels = c("Centrality", "SSP585", "SSP245", "IUCN"))
-
-ggplot(Plotting_df, aes(x = Posterior, 
-                        y = Proxy
-                        )
-       ) +
-  stat_halfeye() +
-  theme_bw() +
-  facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
-  geom_vline(xintercept = 0, col = "black") + 
-  theme(text = element_text(size = 20))
+                                  levels = c("Centrality", "SSP585", "SSP245", "IUCN", "Interaction", "RPT", "LLS"))
+Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
+names(Plot_ls) <- unique(Plotting_df$Parameter)
+for(i in names(Plot_ls)){
+  Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Parameter == i, ], 
+                         aes(x = Posterior, y = Proxy)
+  ) +
+    stat_halfeye() +
+    theme_bw() +
+    facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
+    geom_vline(xintercept = 0, col = "black") + 
+    theme(text = element_text(size = 20))
   # labs(title = model_iter) +
   # theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
+}
 
 ggsave(
+  cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
   filename = file.path(Dir.Exports, "FIG4_ProxyComparison-ALL.png"), 
-  width = 30/0.6, height = 34/2.4, units = "cm")
+  width = 30/0.6, height = 34/1.2, units = "cm")
 
 # FIGURE 5 - Cascade Comparisons ---------------------------------------------
 print("########## FIGURE 5")
@@ -639,7 +658,7 @@ for(model_iter in TopoPlots){
   
   Posterior_df <- posterior_samples(Casc_brms)
   
-  CascIntercept_df <- exp(Posterior_df[, 1:3])
+  CascIntercept_df <- inv_logit_scaled(Posterior_df[, 1:3])
   CascIntercept_df <- stats::reshape(CascIntercept_df,
                                      direction = "long",
                                      varying = colnames(CascIntercept_df),
@@ -656,7 +675,24 @@ for(model_iter in TopoPlots){
                                    pattern = "b_CascAnimals", replacement = "Top-Down")
   CascIntercept_df$NetworkMetric <- model_iter
   
-  Plotting_df <- rbind(Plotting_df, CascIntercept_df)
+  ISRE_df <- inv_logit_scaled(Posterior_df[, c("b_IS", "b_RE", "b_IS:RE")])
+  ISRE_df <- stats::reshape(ISRE_df,
+                            direction = "long",
+                            varying = colnames(ISRE_df),
+                            times = colnames(ISRE_df),
+                            timevar = "Cascade",
+                            v.names = "Posterior",
+  )
+  ISRE_df$Parameter = "Resilience"
+  ISRE_df$Cascade <- gsub(ISRE_df$Cascade,
+                        pattern = "b_IS", replacement = "LLS")
+  ISRE_df$Cascade <- gsub(ISRE_df$Cascade,
+                        pattern = "b_RE", replacement = "RPT")
+  ISRE_df$Cascade <- gsub(ISRE_df$Cascade,
+                        pattern = "LLS:RE", replacement = "Interaction")
+  ISRE_df$NetworkMetric <- model_iter
+  
+  Plotting_df <- rbind(Plotting_df, CascIntercept_df, ISRE_df)
   # plot_ls[[model_iter]] <- ggplot(CascIntercept_df, aes(x = Posterior, y = Cascade)) +
   #   stat_halfeye() +
   #   theme_bw() + 
@@ -670,19 +706,28 @@ for(model_iter in TopoPlots){
 }
 
 Plotting_df <- Plotting_df[-1,]
-ggplot(Plotting_df, aes(x = Posterior, 
-                        y = Cascade
-)
-) +
-  stat_halfeye() +
-  theme_bw() +
-  facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
-  geom_vline(xintercept = 0, col = "black") + 
-  theme(text = element_text(size = 20))
+Plotting_df$Cascade <- factor(Plotting_df$Cascade, 
+                            levels = c("Bidirectional", "Bottom-Up", "Top-Down", "Interaction", "RPT", "LLS"))
+Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
+names(Plot_ls) <- unique(Plotting_df$Parameter)
+for(i in names(Plot_ls)){
+  Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Parameter == i, ], 
+                         aes(x = Posterior, y = Cascade)
+  ) +
+    stat_halfeye() +
+    theme_bw() +
+    facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
+    geom_vline(xintercept = 0, col = "black") + 
+    theme(text = element_text(size = 20))
+  # labs(title = model_iter) +
+  # theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
+}
 
 ggsave(
+  cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
   filename = file.path(Dir.Exports, "FIG5_CascComparison-Climate.png"), 
-  width = 30/0.6, height = 34/2.4, units = "cm")
+  width = 30/0.6, height = 34/1.2, units = "cm")
+
 
 # FIGURE S11 & S12 - Cascade Comparison Matrices -----------------------------
 print("########## FIGURE S11 & S12")
