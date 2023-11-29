@@ -421,105 +421,105 @@ ggvenn(Venn_ls, fill_color = pal_lm, fill_alpha = 0.8, text_color = "white")
 ggsave(filename = file.path(Dir.Exports, paste0("FIGS5_Proxy", RunName,".png")), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
 # }
 
-# FIGURE S10 - Effect Sizes --------------------------------------------------
-print("########## FIGURE S10")
-RunName = "ALL"
-# for(RunName in names(PlotTopo_ls)){
-## extract necessary data
-# EffectSize_df <- PlotTopoAll_ls$EffectSize
-# RandomSD_df <- PlotTopoAll_ls$RandomSD
-EffectSize_df <- PlotTopo_ls[[RunName]]$EffectSize
-RandomSD_df <- PlotTopo_ls[[RunName]]$RandomSD
-
-## reformat to effect sizes
-# Sig_df <- !(abs(EffectSize_df[,TopoPlots]) > RandomSD_df[,TopoPlots])
-# Plot_df <- EffectSize_df[, TopoPlots]
-# Plot_df[Sig_df] <- NA
-Plot_df <- EffectSize_df[, TopoPlots] / RandomSD_df[, TopoPlots]
-Plot_df$netID <- EffectSize_df$netID
-Plot_df$RE <- EffectSize_df$RE
-Plot_df$IS <- EffectSize_df$IS
-Plot_df$Pry <- EffectSize_df$Pry
-
-# ## make effectsizes relative to base networks
-# Plot_df <- Plot_df[ , c("netID", TopoPlots, "Pry", "IS", "RE")]
-# merged_df <- base::merge(Plot_df, PreExt_df[, c("netID", TopoPlots)], by = "netID")
-# Rel_effSizes <- merged_df[ , 2:(length(TopoPlots)+1)] /  # predictions
-#   merged_df[ , (1+2*length(TopoPlots)):ncol(merged_df)] # pre-extinctions
-# colnames(Rel_effSizes) <- TopoPlots
-# Rel_effSizes$netID <- Plot_df$netID
-# Rel_effSizes$RE <- Plot_df$RE
-# Rel_effSizes$IS <- Plot_df$IS
-# Rel_effSizes$Pry <- Plot_df$Pry
-# Plot_df <- Rel_effSizes
-
-## reshape data for aggregation and formatting
-Plot_df <- stats::reshape(data = Plot_df, 
-                          times = colnames(Plot_df)[1:length(TopoPlots)],
-                          varying = list(colnames(Plot_df)[1:length(TopoPlots)]),
-                          timevar = "Topology",
-                          direction = "long")
-colnames(Plot_df)[ncol(Plot_df)-1] <- "EffectSize"
-Plot_df <- Plot_df[which(abs(Plot_df$EffectSize) != Inf), ]
-Plot_df <- Plot_df[which(!is.na(Plot_df$EffectSize)), ]
-
-# ## removal of effectsizes where there was no deletion sequence
-# ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 1, Rewiring = 1, CutOffs = CutOffs)
-# Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed"), length)) == 0)) &
-#           Plot_df$Pry == "Climate", "EffectSize"] <- NA
-# Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed"), length)) == 0)) &
-#           Plot_df$Pry == "IUCN", "EffectSize"] <- NA
-# Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed"), length)) == 0)) &
-#           Plot_df$Pry == "Strength", "EffectSize"] <- NA
-# Plot_df <- na.omit(Plot_df)         
-# Plot_df <- Plot_df[, -ncol(Plot_df)]
-
-## Plot Creation
-ES_ls <- as.list(rep(NA, length(unique(Plot_df$Pry))))
-names(ES_ls) <- unique(Plot_df$Pry)
-for(proxy_iter in unique(Plot_df$Pry)){
-  Topo_ls <- as.list(rep(NA, length(TopoPlots)))
-  names(Topo_ls) <- TopoPlots
-  for(topo_iter in TopoPlots){
-    iter_df <- Plot_df[Plot_df$Topology == topo_iter &
-                         Plot_df$Pry == proxy_iter, ]
-    mean_df <- aggregate(EffectSize ~ Pry+Topology+IS+RE, FUN = mean, data = iter_df)
-    Topo_ls[[topo_iter]] <- ggplot(mean_df, aes(x = RE, y = IS)) +
-      geom_tile(aes(fill = EffectSize)) +
-      coord_fixed() +
-      facet_wrap(~Pry+Topology) +
-      scale_fill_gradient2(high = "darkgreen", low = "darkred") +
-      theme_bw() +  xlab("") + ylab("") +
-      guides(fill = guide_colourbar(barwidth = 2, barheight = 20, title = ""))
-  }
-  ES_ls[[proxy_iter]] <- Topo_ls
-  
-  ## plotting and saving
-  y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence",
-                     gp=gpar(fontface="bold", col="black", fontsize=25), rot=90)
-  x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
-                     gp=gpar(fontface="bold", col="black", fontsize=25))
-  MatPred_plot <- plot_grid(plotlist = ES_ls[[proxy_iter]], nrow = 1)
-  ES_ls[[proxy_iter]] <- MatPred_plot
-}
-
-ggsave(ES_ls$Climate,
-       width = 34/1.2, height = 30/1.2, units = "cm",
-       filename = file.path(Dir.Exports, paste0("FIGS10A_EffectSizes-", RunName, ".png"))
-)
-
-ggsave(
-  plot_grid(plotlist = ES_ls[c("IUCN", "Strength")], nrow = 1), 
-  filename = file.path(Dir.Exports, paste0("FIGS10B+C_EffectSizes-", RunName, ".png")), 
-  width = (34/1.2)*2, height = 30/1.2, units = "cm")
-
-# EffSizePlots_ls <- Proxy_ls
-
-## as exptected, the below produces an error. Signficiance how?!
-# lm_df <- iter_df[iter_df$IS == 0.5 & iter_df$RE == 0.5, ]
-# lm_df
-# lme4::lmer(EffectSize ~ 1 + (1|netID), data = lm_df)
+# # FIGURE S10 - Effect Sizes --------------------------------------------------
+# print("########## FIGURE S10")
+# RunName = "ALL"
+# # for(RunName in names(PlotTopo_ls)){
+# ## extract necessary data
+# # EffectSize_df <- PlotTopoAll_ls$EffectSize
+# # RandomSD_df <- PlotTopoAll_ls$RandomSD
+# EffectSize_df <- PlotTopo_ls[[RunName]]$EffectSize
+# RandomSD_df <- PlotTopo_ls[[RunName]]$RandomSD
+# 
+# ## reformat to effect sizes
+# # Sig_df <- !(abs(EffectSize_df[,TopoPlots]) > RandomSD_df[,TopoPlots])
+# # Plot_df <- EffectSize_df[, TopoPlots]
+# # Plot_df[Sig_df] <- NA
+# Plot_df <- EffectSize_df[, TopoPlots] / RandomSD_df[, TopoPlots]
+# Plot_df$netID <- EffectSize_df$netID
+# Plot_df$RE <- EffectSize_df$RE
+# Plot_df$IS <- EffectSize_df$IS
+# Plot_df$Pry <- EffectSize_df$Pry
+# 
+# # ## make effectsizes relative to base networks
+# # Plot_df <- Plot_df[ , c("netID", TopoPlots, "Pry", "IS", "RE")]
+# # merged_df <- base::merge(Plot_df, PreExt_df[, c("netID", TopoPlots)], by = "netID")
+# # Rel_effSizes <- merged_df[ , 2:(length(TopoPlots)+1)] /  # predictions
+# #   merged_df[ , (1+2*length(TopoPlots)):ncol(merged_df)] # pre-extinctions
+# # colnames(Rel_effSizes) <- TopoPlots
+# # Rel_effSizes$netID <- Plot_df$netID
+# # Rel_effSizes$RE <- Plot_df$RE
+# # Rel_effSizes$IS <- Plot_df$IS
+# # Rel_effSizes$Pry <- Plot_df$Pry
+# # Plot_df <- Rel_effSizes
+# 
+# ## reshape data for aggregation and formatting
+# Plot_df <- stats::reshape(data = Plot_df, 
+#                           times = colnames(Plot_df)[1:length(TopoPlots)],
+#                           varying = list(colnames(Plot_df)[1:length(TopoPlots)]),
+#                           timevar = "Topology",
+#                           direction = "long")
+# colnames(Plot_df)[ncol(Plot_df)-1] <- "EffectSize"
+# Plot_df <- Plot_df[which(abs(Plot_df$EffectSize) != Inf), ]
+# Plot_df <- Plot_df[which(!is.na(Plot_df$EffectSize)), ]
+# 
+# # ## removal of effectsizes where there was no deletion sequence
+# # ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 1, Rewiring = 1, CutOffs = CutOffs)
+# # Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed"), length)) == 0)) &
+# #           Plot_df$Pry == "Climate", "EffectSize"] <- NA
+# # Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed"), length)) == 0)) &
+# #           Plot_df$Pry == "IUCN", "EffectSize"] <- NA
+# # Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed"), length)) == 0)) &
+# #           Plot_df$Pry == "Strength", "EffectSize"] <- NA
+# # Plot_df <- na.omit(Plot_df)         
+# # Plot_df <- Plot_df[, -ncol(Plot_df)]
+# 
+# ## Plot Creation
+# ES_ls <- as.list(rep(NA, length(unique(Plot_df$Pry))))
+# names(ES_ls) <- unique(Plot_df$Pry)
+# for(proxy_iter in unique(Plot_df$Pry)){
+#   Topo_ls <- as.list(rep(NA, length(TopoPlots)))
+#   names(Topo_ls) <- TopoPlots
+#   for(topo_iter in TopoPlots){
+#     iter_df <- Plot_df[Plot_df$Topology == topo_iter &
+#                          Plot_df$Pry == proxy_iter, ]
+#     mean_df <- aggregate(EffectSize ~ Pry+Topology+IS+RE, FUN = mean, data = iter_df)
+#     Topo_ls[[topo_iter]] <- ggplot(mean_df, aes(x = RE, y = IS)) +
+#       geom_tile(aes(fill = EffectSize)) +
+#       coord_fixed() +
+#       facet_wrap(~Pry+Topology) +
+#       scale_fill_gradient2(high = "darkgreen", low = "darkred") +
+#       theme_bw() +  xlab("") + ylab("") +
+#       guides(fill = guide_colourbar(barwidth = 2, barheight = 20, title = ""))
+#   }
+#   ES_ls[[proxy_iter]] <- Topo_ls
+#   
+#   ## plotting and saving
+#   y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence",
+#                      gp=gpar(fontface="bold", col="black", fontsize=25), rot=90)
+#   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
+#                      gp=gpar(fontface="bold", col="black", fontsize=25))
+#   MatPred_plot <- plot_grid(plotlist = ES_ls[[proxy_iter]], nrow = 1)
+#   ES_ls[[proxy_iter]] <- MatPred_plot
 # }
+# 
+# ggsave(ES_ls$Climate,
+#        width = 34/1.2, height = 30/1.2, units = "cm",
+#        filename = file.path(Dir.Exports, paste0("FIGS10A_EffectSizes-", RunName, ".png"))
+# )
+# 
+# ggsave(
+#   plot_grid(plotlist = ES_ls[c("IUCN", "Strength")], nrow = 1), 
+#   filename = file.path(Dir.Exports, paste0("FIGS10B+C_EffectSizes-", RunName, ".png")), 
+#   width = (34/1.2)*2, height = 30/1.2, units = "cm")
+# 
+# # EffSizePlots_ls <- Proxy_ls
+# 
+# ## as exptected, the below produces an error. Signficiance how?!
+# # lm_df <- iter_df[iter_df$IS == 0.5 & iter_df$RE == 0.5, ]
+# # lm_df
+# # lme4::lmer(EffectSize ~ 1 + (1|netID), data = lm_df)
+# # }
 
 # FIGURE 4 - Proxy Comparisons -----------------------------------------------
 print("########## FIGURE 4")
@@ -738,13 +738,19 @@ for(RunIter in 1:2){
   FigName <- FigNames[RunIter]
   ### Baseline ALL Changes ----
   Change_df <- PlotTopo_ls[["ALL"]]$Change
-  Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% c("Climate", "IUCN", "Strength"), ]
+  Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% 
+                           c("Climate", 
+                             # "IUCN", 
+                             "Strength"), ]
   base_plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = Change_df)
   base_sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = Change_df)
   
   ### Relative Changes ----
   Change_df <- PlotTopo_ls[[RunName]]$Change
-  Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% c("Climate", "IUCN", "Strength"), ]
+  Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% 
+                           c("Climate", 
+                             # "IUCN", 
+                             "Strength"), ]
   test_plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = Change_df)
   test_sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = Change_df)
   
@@ -851,6 +857,9 @@ plot_df$Value[which(is.nan(plot_df$Value))] <- NA
 
 sd_df <- aggregate(Value ~ Proxy+Casc+IS+RE, FUN = sd, data = plot_df)
 plot_df <- aggregate(Value ~ Proxy+Casc+IS+RE, FUN = mean, data = plot_df)
+
+plot_df <- plot_df[plot_df$Proxy != "IUCN", ]
+sd_df <- sd_df[sd_df$Proxy != "IUCN", ]
 
 Pred_gplot <- ggplot(plot_df, aes(x = RE, y = IS)) +
   geom_tile(aes(fill = Value)) +
