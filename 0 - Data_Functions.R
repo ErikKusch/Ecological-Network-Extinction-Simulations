@@ -198,7 +198,6 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     Sim_ls <- pblapply(names(AnalysisData_ls), 
                        cl = cl,
                        function(y){
-                         # print(x)
                          # y <- names(AnalysisData_ls)[7]
                          message(y)
                          x <- AnalysisData_ls[[y]]
@@ -296,23 +295,23 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                  RewiringDist = prob_mat, # 
                                                                  RewiringProb = Rewiring,
                                                                  forceFULL = TRUE)
-                           ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                          parallel = FALSE, ncores = parallel::detectCores(), 
-                                                          SimNum = length(proxcen),
-                                                          IS = IS,
-                                                          NetworkType = "Mutualistic",
-                                                          ## PDF-driven rewiring block
-                                                          Rewiring = function(x){x},
-                                                          # decay = Rewiring
-                                                          # RewiringDist = dist_mat, #
-                                                          ### Probability matrix-driven block
-                                                          RewiringDist = prob_mat, # 
-                                                          RewiringProb = Rewiring,
-                                                          forceFULL = TRUE)
-                           ExtS_Rand <- list(sims = ExtS_Rand$sims,
-                                             R50 = ExtS_Rand$R50result,
-                                             R50 = ExtS_Rand$R100result,
-                                             Network = ExtS_Rand$nets)
+                           # ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100,
+                           #                                parallel = FALSE, ncores = parallel::detectCores(),
+                           #                                SimNum = length(proxcen),
+                           #                                IS = IS,
+                           #                                NetworkType = "Mutualistic",
+                           #                                ## PDF-driven rewiring block
+                           #                                Rewiring = function(x){x},
+                           #                                # decay = Rewiring
+                           #                                # RewiringDist = dist_mat, #
+                           #                                ### Probability matrix-driven block
+                           #                                RewiringDist = prob_mat, #
+                           #                                RewiringProb = Rewiring,
+                           #                                forceFULL = TRUE)
+                           # ExtS_Rand <- list(sims = ExtS_Rand$sims,
+                           #                   R50 = ExtS_Rand$R50result,
+                           #                   R50 = ExtS_Rand$R100result,
+                           #                   Network = ExtS_Rand$nets)
                            # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
                          }
                          
@@ -339,24 +338,24 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    RewiringProb = Rewiring,
                                                                    forceFULL = TRUE
                              )
-                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                            parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimNum = length(primext_namesC),
-                                                            IS = IS,
-                                                            NetworkType = "Mutualistic",
-                                                            ## PDF-driven rewiring block
-                                                            Rewiring = function(x){x},
-                                                            # decay = Rewiring
-                                                            # RewiringDist = dist_mat, #
-                                                            ### Probability matrix-driven block
-                                                            RewiringDist = prob_mat, # 
-                                                            RewiringProb = Rewiring,
-                                                            forceFULL = TRUE
-                             )
-                             ExtC_Rand <- list(sims = ExtC_Rand$sims,
-                                               R50 = ExtC_Rand$R50result,
-                                               R50 = ExtC_Rand$R100result,
-                                               Network = ExtC_Rand$nets)
+                             # ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
+                             #                                parallel = FALSE, ncores = parallel::detectCores(), 
+                             #                                SimNum = length(primext_namesC),
+                             #                                IS = IS,
+                             #                                NetworkType = "Mutualistic",
+                             #                                ## PDF-driven rewiring block
+                             #                                Rewiring = function(x){x},
+                             #                                # decay = Rewiring
+                             #                                # RewiringDist = dist_mat, #
+                             #                                ### Probability matrix-driven block
+                             #                                RewiringDist = prob_mat, # 
+                             #                                RewiringProb = Rewiring,
+                             #                                forceFULL = TRUE
+                             # )
+                             # ExtC_Rand <- list(sims = ExtC_Rand$sims,
+                             #                   R50 = ExtC_Rand$R50result,
+                             #                   R50 = ExtC_Rand$R100result,
+                             #                   Network = ExtC_Rand$nets)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -384,24 +383,24 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    RewiringProb = Rewiring,
                                                                    forceFULL = TRUE
                              )
-                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                            parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimNum = length(primext_namesC),
-                                                            IS = IS,
-                                                            NetworkType = "Mutualistic",
-                                                            ## PDF-driven rewiring block
-                                                            Rewiring = function(x){x},
-                                                            # decay = Rewiring
-                                                            # RewiringDist = dist_mat, #
-                                                            ### Probability matrix-driven block
-                                                            RewiringDist = prob_mat, # 
-                                                            RewiringProb = Rewiring,
-                                                            forceFULL = TRUE
-                             )
-                             ExtC_Rand <- list(sims = ExtC_Rand$sims,
-                                               R50 = ExtC_Rand$R50result,
-                                               R50 = ExtC_Rand$R100result,
-                                               Network = ExtC_Rand$nets)
+                             # ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
+                             #                                parallel = FALSE, ncores = parallel::detectCores(), 
+                             #                                SimNum = length(primext_namesC),
+                             #                                IS = IS,
+                             #                                NetworkType = "Mutualistic",
+                             #                                ## PDF-driven rewiring block
+                             #                                Rewiring = function(x){x},
+                             #                                # decay = Rewiring
+                             #                                # RewiringDist = dist_mat, #
+                             #                                ### Probability matrix-driven block
+                             #                                RewiringDist = prob_mat, # 
+                             #                                RewiringProb = Rewiring,
+                             #                                forceFULL = TRUE
+                             # )
+                             # ExtC_Rand <- list(sims = ExtC_Rand$sims,
+                             #                   R50 = ExtC_Rand$R50result,
+                             #                   R50 = ExtC_Rand$R100result,
+                             #                   Network = ExtC_Rand$nets)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
                            } 
                          }
@@ -429,24 +428,24 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    RewiringProb = Rewiring,
                                                                    forceFULL = TRUE
                              )
-                             ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                                                            parallel = FALSE, ncores = parallel::detectCores(), 
-                                                            SimNum = length(primext_namesI),
-                                                            IS = IS,
-                                                            NetworkType = "Mutualistic",
-                                                            ## PDF-driven rewiring block
-                                                            Rewiring = function(x){x},
-                                                            # decay = Rewiring
-                                                            # RewiringDist = dist_mat, #
-                                                            ### Probability matrix-driven block
-                                                            RewiringDist = prob_mat, # 
-                                                            RewiringProb = Rewiring,
-                                                            forceFULL = TRUE
-                             )
-                             ExtI_Rand <- list(sims = ExtI_Rand$sims,
-                                               R50 = ExtI_Rand$R50result,
-                                               R50 = ExtI_Rand$R100result,
-                                               Network = ExtI_Rand$nets)
+                             # ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
+                             #                                parallel = FALSE, ncores = parallel::detectCores(), 
+                             #                                SimNum = length(primext_namesI),
+                             #                                IS = IS,
+                             #                                NetworkType = "Mutualistic",
+                             #                                ## PDF-driven rewiring block
+                             #                                Rewiring = function(x){x},
+                             #                                # decay = Rewiring
+                             #                                # RewiringDist = dist_mat, #
+                             #                                ### Probability matrix-driven block
+                             #                                RewiringDist = prob_mat, # 
+                             #                                RewiringProb = Rewiring,
+                             #                                forceFULL = TRUE
+                             # )
+                             # ExtI_Rand <- list(sims = ExtI_Rand$sims,
+                             #                   R50 = ExtI_Rand$R50result,
+                             #                   R50 = ExtI_Rand$R100result,
+                             #                   Network = ExtI_Rand$nets)
                              # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
                            } 
                          }
@@ -454,12 +453,15 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                          ## Export ------------------------------------------------------------------
                          # print(nrow(as.matrix(CustOrder_ExtI[[2]])))
                          # as.matrix(CustOrder_ExtI[[2]])
-                         Fun.Save <- function(x = CustOrder_ExtI, y = ExtI_Rand){
+                         Fun.Save <- function(x = CustOrder_ExtI
+                                              # , 
+                                              # y = ExtI_Rand
+                                              ){
                            
                            ## This happens when no simulation was run
                            if(sum(is.na(as.matrix(x$Network))) != 0){
                              Pred <- as.matrix(NA)
-                             Rand <- as.matrix(NA)
+                             # Rand <- as.matrix(NA)
                            }else{
                              ## this is complete network annihilation, if this happens, we manually assign a zero-matrix
                              if(sum(as.matrix.network.adjacency(x$Network, attrname = "weight")) == 0 | 
@@ -468,9 +470,9 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                              }else{
                                Pred <- as.matrix.network.adjacency(x$Network, attrname = "weight")
                              }
-                             Rand <- lapply(y$Network, as.matrix.network.adjacency, attrname = "weight") 
-                             Rand[unlist(lapply(Rand, sum)) == 0 | 
-                                    unlist(lapply(Rand, FUN = function(k){nrow(as.matrix(k))})) == 1] <- as.matrix(0) 
+                             # Rand <- lapply(y$Network, as.matrix.network.adjacency, attrname = "weight") 
+                             # Rand[unlist(lapply(Rand, sum)) == 0 | 
+                             #        unlist(lapply(Rand, FUN = function(k){nrow(as.matrix(k))})) == 1] <- as.matrix(0) 
                            }
                            # if(nrow(as.matrix(x$Network)) != 1){
                            #   Pred <- as.matrix.network.adjacency(x$Network, 
@@ -502,20 +504,31 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            
                            
                            # }
-                           return(list(Pred = Pred, Rand = Rand))
+                           return(list(Pred = Pred
+                                       # , Rand = Rand
+                                       ))
                          }
                          
                          list(Strength = list(Removed = primext_namesS,
-                                              Prediction = Fun.Save(x = CustOrder_ExtS, y = ExtS_Rand)$Pred,
-                                              Random = Fun.Save(x = CustOrder_ExtS, y = ExtS_Rand)$Rand
+                                              Prediction = Fun.Save(x = CustOrder_ExtS
+                                                                    # , y = ExtS_Rand
+                                                                    )$Pred
+                                              # ,
+                                              # Random = Fun.Save(x = CustOrder_ExtS, y = ExtS_Rand)$Rand
                          ),
                          Climate = list(Removed = primext_namesC,
-                                        Prediction = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Pred,
-                                        Random = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Rand
+                                        Prediction = Fun.Save(x = CustOrder_ExtC
+                                                              # , y = ExtC_Rand
+                                                              )$Pred
+                                        # ,
+                                        # Random = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Rand
                          ),
                          IUCN = list(Removed = primext_namesI,
-                                     Prediction = Fun.Save(x = CustOrder_ExtI, y = ExtI_Rand)$Pred,
-                                     Random = Fun.Save(x = CustOrder_ExtI, y = ExtI_Rand)$Rand
+                                     Prediction = Fun.Save(x = CustOrder_ExtI
+                                                           # , y = ExtI_Rand
+                                                           )$Pred
+                                     # ,
+                                     # Random = Fun.Save(x = CustOrder_ExtI, y = ExtI_Rand)$Rand
                          )
                          # ,
                          # IUCN_Climate = list(Removed = primext_namesCombin,
@@ -563,8 +576,8 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
                                if(length(Sim_ls[[netID]][[i]][["Removed"]]) != 0){
                                  Storage_ls[[i]][["Removed"]] <- length(Sim_ls[[netID]][[i]][["Removed"]])
                                  Storage_ls[[i]][["Prediction"]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]][["Prediction"]]))
-                                 Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
-                                 Storage_ls[[i]][["Random"]] <- do.call(rbind, Rand_ls) 
+                                 # Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
+                                 # Storage_ls[[i]][["Random"]] <- do.call(rbind, Rand_ls) 
                                }else{
                                  Storage_ls[[i]][["Removed"]] <- 0
                                  Storage_ls[[i]][["Prediction"]] <- PreExt_df[PreExt_df$netID == netID, 1:8]
@@ -598,47 +611,51 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
       Pred_df$Proxy <- k
       Pred_df$Simulation <- "Prediction"
       Pred_df$Removed <- Rem_df[,1]
-      Rand_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"))
-      if(is.null(Rand_df)){ # this happens when no simulation could be run for the entire list of networks for this proxy
-        Topo_ls[[k]] <- Pred_df
-        next()
-      }else{
-        Rand_df <- Rand_df[unlist(lapply(strsplit(rownames(Rand_df), split = "[.]"), "[[", 1)) %in% rownames(Rem_df)[Rem_df != 0], ]
-        if(is.logical(Rand_df)){
-          Topo_ls[[k]] <- Pred_df
-          next()
-        }
-        Rand_df$netID <- rep(names(unlist(lapply(lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"), nrow))), # these are the names for which random sims could be run
-                             each = 1e2)
-        Rand_df$Proxy <- k
-        Rand_df$Simulation <- "Random"
-        Rand_df$Removed <- 9999
+      # Rand_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"))
+      # if(is.null(Rand_df)){ # this happens when no simulation could be run for the entire list of networks for this proxy
+      #   Topo_ls[[k]] <- Pred_df
+      #   next()
+      # }else{
+      #   Rand_df <- Rand_df[unlist(lapply(strsplit(rownames(Rand_df), split = "[.]"), "[[", 1)) %in% rownames(Rem_df)[Rem_df != 0], ]
+      #   if(is.logical(Rand_df)){
+      #     Topo_ls[[k]] <- Pred_df
+      #     next()
+      #   }
+      #   Rand_df$netID <- rep(names(unlist(lapply(lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"), nrow))), # these are the names for which random sims could be run
+      #                        each = 1e2)
+      #   Rand_df$Proxy <- k
+      #   Rand_df$Simulation <- "Random"
+      #   Rand_df$Removed <- 9999
         # print(head(Pred_df))
         # print(head(Rand_df))
-        Topo_ls[[k]] <- rbind(Pred_df, Rand_df) 
+        # Topo_ls[[k]] <- rbind(Pred_df, Rand_df) 
+        Topo_ls[[k]] <- Pred_df
       }
     }
     Topo_df <- do.call(rbind, Topo_ls)
     ## Effect size calculation
     MeanPred <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Prediction",],
                           FUN = mean, na.rm = TRUE, na.action=NULL)
-    MeanRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
-                          FUN = mean, na.rm = TRUE, na.action=NULL)
-    SDRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
-                        FUN = sd, na.rm = TRUE, na.action=NULL)
-    Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
-    Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
-    Eff_df <-  Merge1_df[,4:(ncol(MeanPred)-1)] - # mean predictions
-      Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-5)]  # mean randoms
-    Eff_df$netID <- Merge1_df$netID
-    Eff_df$Proxy <- Merge1_df$Proxy
+    # MeanRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
+    #                       FUN = mean, na.rm = TRUE, na.action=NULL)
+    # SDRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
+    #                     FUN = sd, na.rm = TRUE, na.action=NULL)
+    # Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
+    # Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
+    # Eff_df <-  Merge1_df[,4:(ncol(MeanPred)-1)] - # mean predictions
+    #   Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-5)]  # mean randoms
+    # Eff_df$netID <- Merge1_df$netID
+    # Eff_df$Proxy <- Merge1_df$Proxy
+    # 
+    # EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):(ncol(Merge1_df)-1)]
+    # EffSD_df$netID <- Merge1_df$netID
+    # EffSD_df$Proxy <- Merge1_df$Proxy
+    # colnames(Eff_df) <- colnames(EffSD_df)
     
-    EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):(ncol(Merge1_df)-1)]
-    EffSD_df$netID <- Merge1_df$netID
-    EffSD_df$Proxy <- Merge1_df$Proxy
-    colnames(Eff_df) <- colnames(EffSD_df)
-    
-    Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df, Eff_df = Eff_df, EffSD_df = EffSD_df)
+    Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df
+                    # , Eff_df = Eff_df, EffSD_df = EffSD_df
+                    # , Eff_df = Eff_df, EffSD_df = EffSD_df
+                    )
     
     ## Data Return
     save(Save_ls, file = file.path(Dir.Exports, paste0(RunName, "SimulationTopo_", 
@@ -647,7 +664,7 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
                                                        ".RData")))
     return(Save_ls)
   }
-}
+# }
 
 # Loading topology data for each extinction cascade ========================
 loadTopo <- function(RunName = "ALL", CutOffs, Pre){
@@ -670,21 +687,23 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
   pb <- txtProgressBar(min = 0, max = length(fs), style = 3)
   for(i in 1:length(fs)){
     ## data extraction
-    Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
-    EffSD2_df <- loadRData(file.path(Dir.Exports, fs[i]))$EffSD_df
+    # Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
+    # EffSD2_df <- loadRData(file.path(Dir.Exports, fs[i]))$EffSD_df
     Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
     IS_Iter <- as.numeric(unlist(lapply(
       regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
       "[[", 1
     )))
     add <- ifelse(IS_Iter == 585, 1, 0)
-    EffSD2_df$IS <- Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
-      regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
+    # EffSD2_df$IS <- Eff2_df$IS <- 
+    Topo2_df$IS <- as.numeric(unlist(lapply(
+      regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])),
       "[[", 1+add
     )))
-    EffSD2_df$RE <- Eff2_df$RE <- Topo2_df$RE <- as.numeric(unlist(
+    # EffSD2_df$RE <- Eff2_df$RE <- 
+    Topo2_df$RE <- as.numeric(unlist(
       lapply(
-        regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs[i])), 
+        regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs[i])),
         "[[", 2+add
       )
     ))
@@ -710,18 +729,21 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
     })
     Change2_df <- do.call(rbind, Rel_ls)
     if(i == 1){
-      Eff_df <- Eff2_df
-      EffSD_df <- EffSD2_df
+      # Eff_df <- Eff2_df
+      # EffSD_df <- EffSD2_df
       Topo_df <- Topo2_df
       Change_df <- Change2_df
     }else{
-      Eff_df <- rbind(Eff_df, Eff2_df)
-      EffSD_df <- rbind(EffSD_df, EffSD2_df)
+      # Eff_df <- rbind(Eff_df, Eff2_df)
+      # EffSD_df <- rbind(EffSD_df, EffSD2_df)
       Topo_df <- rbind(Topo_df, Topo2_df)
       Change_df <- rbind(Change_df, Change2_df)
     }
     setTxtProgressBar(pb, i)
   }
-  colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
-  return(list(Topology = Topo_df, EffectSize = Eff_df, RandomSD = EffSD_df, Change = Change_df))
+  # colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
+  return(list(Topology = Topo_df, 
+              EffectSize = NULL, #Eff_df, 
+              RandomSD = NULL, #EffSD_df, 
+              Change = Change_df))
 }
