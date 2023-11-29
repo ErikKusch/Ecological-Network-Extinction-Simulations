@@ -674,6 +674,7 @@ for(ssp in ssps){
       
       ## creating order of extinction risk /climate stress
       Order_df <- Prox_df
+      Order_df$Qsoil[Order_df$species %in% Animals_spec] <- 0 # no consideration for Qsoil effects on animals
       Order_df[, 2:3] <- abs(Order_df[, 2:3])
       WhichMax <- apply(Order_df[, 2:3], MARGIN = 1, FUN = which.max)
       Order_vec <- sapply(1:nrow(Order_df), FUN = function(x){
