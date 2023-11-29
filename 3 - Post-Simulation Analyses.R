@@ -822,7 +822,7 @@ for(RunIter in 1:2){
   
   MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 2)
   MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, bottom = x.grob))
-  ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(FigName, "_MatrixChange", RunName, "-ComparedtoALL.png")), width = 28/1.2, height = 22/1.2, units = "cm")
+  ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(FigName, "_MatrixChange", RunName, "-ComparedtoALL.png")), width = 22/1.2, height = 22/1.2, units = "cm")
   # MatSD_plot <- plot_grid(plotlist = matplot_ls$SD, nrow = 1)
   # MatSD_plot <- grid.arrange(arrangeGrob(MatSD_plot, left = y.grob, top = x.grob))
   # ggsave(MatSD_plot, filename = file.path(Dir.Exports, paste0("PLOT_MatrixChange_SD", RunName, "-ComparedtoALL.png")), width = 44/1.2, height = 34/1.2, units = "cm")
@@ -903,5 +903,5 @@ x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
                    gp=gpar(fontface="bold", col="black", fontsize=15))
 
 Export_plot <- grid.arrange(arrangeGrob(plot_grid(Pred_gplot, SD_gplot, nrow = 1), left = y.grob, top = x.grob))
-ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS13", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 40/1.2, height = 34/1.2, units = "cm")
+ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS13", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 43/1.2, height = 28/1.2, units = "cm")
 
