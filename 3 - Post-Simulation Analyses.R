@@ -611,7 +611,8 @@ Plotting_df$Proxy <- factor(Plotting_df$Proxy,
 Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
 names(Plot_ls) <- unique(Plotting_df$Parameter)
 for(i in names(Plot_ls)){
-  Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Parameter == i, ], 
+  Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Proxy != "IUCN" & 
+                                       Plotting_df$Parameter == i, ], 
                          aes(x = Posterior, y = Proxy)
   ) +
     stat_halfeye() +
@@ -626,7 +627,7 @@ for(i in names(Plot_ls)){
 ggsave(
   cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
   filename = file.path(Dir.Exports, "FIG4_ProxyComparison-ALL.png"), 
-  width = 30/0.6, height = 34/1.2, units = "cm")
+  width = 30/0.6, height = 30/1.2, units = "cm")
 
 # FIGURE 5 - Cascade Comparisons ---------------------------------------------
 print("########## FIGURE 5")
