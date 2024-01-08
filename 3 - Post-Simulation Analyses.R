@@ -347,6 +347,48 @@ for(proxy_enum in 1:length(unique(Change_df$Proxy))){
                                                     "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 32/1.2, height = 30/1.2, units = "cm") 
     Proxy_ls[[proxy_iter]] <- matplot_ls 
   # }
+    
+    plot_ls <- lapply(1:nrow(plot_df), FUN = function(i){
+      Cont <- which(iter_df$IS %in% 0 & iter_df$RE %in% 1 & iter_df$Topology %in% plot_df[i,]$Topology)
+      Comp <- which(iter_df$IS %in% plot_df[i,]$IS & iter_df$RE %in% plot_df[i,]$RE & iter_df$Topology %in% plot_df[i,]$Topology)
+      t <- t.test(iter_df[Cont,]$RelChange, iter_df[Comp,]$RelChange)
+      data.frame(IS = plot_df[i,]$IS,
+                 RE = plot_df[i,]$RE,
+                 Topology = plot_df[i,]$Topology,
+                 p = t$p.value,
+                 diff = t$estimate[1]-t$estimate[2] #contemporary mean - comparison mean
+      )
+    })
+    plot_df <- do.call(rbind, plot_ls)
+    plot_df$Proxy <- proxy_iter
+    
+    tplot <- ggplot(plot_df, aes(x = RE, y = IS)) +
+      geom_tile(aes(fill = diff)) +
+      geom_point(aes(shape = p < 0.05), size = 10) + 
+      coord_fixed() + 
+      facet_wrap(~Proxy+Topology, ncol = 2) + 
+      theme_bw() + 
+      xlab("Probability of Rewiring Required to Realise Novel Links") +
+      ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
+      # xlab("") + 
+      # ylab("") + 
+      scale_fill_gradient2(high = "forestgreen", low = "darkred", name = "Difference") +
+      guides(fill = guide_colourbar(barwidth = 2,
+                                    barheight = 30,
+                                    title = "Over-/Underprediction \n of Network Change",
+                                    # title.position = "bottom",
+                                    # direction = "horizontal",
+                                    # legend.location = "bottom"
+      )) + 
+      scale_shape_manual(values = c(NA, 0), name = "Significant") + # 15
+      # theme(legend.position = "bottom") + 
+      # ggtitle(TopoPlots[TopoIter]) + 
+      theme(plot.margin = unit(c(0,0,0,0), "lines")) + 
+      guides(shape = "none")
+    ggsave(tplot, 
+           filename = file.path(Dir.Exports, paste0("FIGSX", 
+                                                    "_T-TestOverUnder-", RunName, "-", proxy_iter, ".png")), width = 32/0.75, height = 30/1.2, units = "cm") 
+    
 }
 # RelChangePlots_ls <- Proxy_ls
 # }
