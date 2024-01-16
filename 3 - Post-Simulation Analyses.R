@@ -904,8 +904,8 @@ plot_df$Value[which(is.nan(plot_df$Value))] <- NA
 sd_df <- aggregate(Value ~ Proxy+Casc+IS+RE, FUN = sd, data = plot_df)
 plot_df <- aggregate(Value ~ Proxy+Casc+IS+RE, FUN = mean, data = plot_df)
 
-plot_df <- plot_df[plot_df$Proxy != "IUCN", ]
-sd_df <- sd_df[sd_df$Proxy != "IUCN", ]
+plot_df <- plot_df[plot_df$Proxy != "IUCN" & plot_df$Proxy != "Strength", ]
+sd_df <- sd_df[sd_df$Proxy != "IUCN" & sd_df$Proxy != "Strength", ]
 
 Pred_gplot <- ggplot(plot_df, aes(x = RE, y = IS)) +
   geom_tile(aes(fill = Value)) +
