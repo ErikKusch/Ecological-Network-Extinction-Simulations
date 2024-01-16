@@ -654,6 +654,7 @@ Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
 names(Plot_ls) <- unique(Plotting_df$Parameter)
 for(i in names(Plot_ls)){
   Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Proxy != "IUCN" & 
+                                       Plotting_df$Proxy != "Centrality" & 
                                        Plotting_df$Parameter == i, ], 
                          aes(x = Posterior, y = Proxy)
   ) +
@@ -791,9 +792,11 @@ for(RunIter in 1:2){
   ### Relative Changes ----
   Change_df <- PlotTopo_ls[[RunName]]$Change
   Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% 
-                           c("Climate", 
+                           c("Climate"
+                             #, 
                              # "IUCN", 
-                             "Strength"), ]
+                             #"Strength"
+                             ), ]
   test_plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = Change_df)
   test_sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = Change_df)
   
