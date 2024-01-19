@@ -24,5 +24,8 @@ Erik Kusch (erik.kusch@nhm.uio.no, [OrcID](https://orcid.org/my-orcid?orcid=0000
 
 By implementing these guidelines, we conclusively show that current ecosystem forecast practices are likely to underpredict threats to ecosystems. While we have explored potential ecosystem projections rather than expected projections for each target ecosystem, our study framework represents a powerful approach to exploring more realistic ranges of future ecosystem scenarios than previous approaches. This new perspective will allow more effective targeting of conservation efforts. 
 
+## Data Availability
+Data needed for reproducing this analysis is available at https://zenodo.org/doi/10.5281/zenodo.10535117.
+
 ## Funding
 Aarhus University Research Foundation Start-up Grant (grant no. AUFF-2018-7-8) 
