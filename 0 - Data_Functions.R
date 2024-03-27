@@ -180,7 +180,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                         CutOffs,
                         PotPartners, 
                         Traits,
-                        WHICH = c("Strength", "Climate", "IUCN")
+                        WHICH = c("SSP245") # or SSP585
 ){
   
   writeLines(paste0("## ", RunName, " ## \nIS (% of IS required for continued existence) = ", IS, " \nRewiring Cutoff (probability of rewiring required) = ", Rewiring))
@@ -198,7 +198,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
     Sim_ls <- pblapply(names(AnalysisData_ls), 
                        cl = cl,
                        function(y){
-                         # y <- names(AnalysisData_ls)[7]
+                         # y <- names(AnalysisData_ls)[16]
                          message(y)
                          x <- AnalysisData_ls[[y]]
                          
@@ -273,102 +273,24 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                            x$prox_IUCN <- x$prox_IUCN[names(x$prox_IUCN) %in% PlantAnim]
                          }
                          
-                         ## Centrality-Driven -------------------------------------------------------
-                         # print("Extinction of Keystone Species (Centrality)")
-                         proxcen <- x$prox_centrality[x$prox_centrality > quantile(x$prox_centrality, CutOffs$Strength)] # just eliminate upper 25% quantile
-                         primext_namesS <- names(proxcen)
-                         primext_order <- match(primext_namesS, rownames(x$Adjacency))
-                         CustOrder_ExtS <- ExtS_Rand <- as.list(c(NA, NA, NA, NA))
-                         names(CustOrder_ExtS) <- names(ExtS_Rand) <- c("sims", "R50", "R100", "Network")
-                         if("Strength" %in% WHICH){
-                           print("Strength")
-                           CustOrder_ExtS <- SimulateExtinctions(Network = net, 
-                                                                 Method = "Ordered",
-                                                                 Order = primext_order, 
-                                                                 IS = IS,
-                                                                 NetworkType = "Mutualistic",
-                                                                 ## PDF-driven rewiring block
-                                                                 Rewiring = function(x){x},
-                                                                 # decay = Rewiring
-                                                                 # RewiringDist = dist_mat, #
-                                                                 ### Probability matrix-driven block
-                                                                 RewiringDist = prob_mat, # 
-                                                                 RewiringProb = Rewiring,
-                                                                 forceFULL = TRUE)
-                           # ExtS_Rand <- RandomExtinctions(Network = net, nsim = 100,
-                           #                                parallel = FALSE, ncores = parallel::detectCores(),
-                           #                                SimNum = length(proxcen),
-                           #                                IS = IS,
-                           #                                NetworkType = "Mutualistic",
-                           #                                ## PDF-driven rewiring block
-                           #                                Rewiring = function(x){x},
-                           #                                # decay = Rewiring
-                           #                                # RewiringDist = dist_mat, #
-                           #                                ### Probability matrix-driven block
-                           #                                RewiringDist = prob_mat, #
-                           #                                RewiringProb = Rewiring,
-                           #                                forceFULL = TRUE)
-                           # ExtS_Rand <- list(sims = ExtS_Rand$sims,
-                           #                   R50 = ExtS_Rand$R50result,
-                           #                   R50 = ExtS_Rand$R100result,
-                           #                   Network = ExtS_Rand$nets)
-                           # CompareExtinctions(Nullmodel = ExtS_Rand[[1]], Hypothesis = CustOrder_ExtS[[1]]) 
-                         }
-                         
                          ## Climate-Driven ----------------------------------------------------------
                          # print("Extinction of Threatened Species (Climate Projections)")
-                         primext_namesC <- names(x$prox_climate)[x$prox_climate > CutOffs$Climate] # random cutoff of climate risk severity selected here
-                         primext_order <- match(primext_namesC, rownames(x$Adjacency))
-                         CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA, NA, NA))
-                         names(CustOrder_ExtC) <- names(ExtC_Rand) <- c("sims", "R50", "R100", "Network")
-                         if("Climate" %in% WHICH){
-                           if(length(primext_namesC) != 0){
-                             print("Climate")
-                             CustOrder_ExtC <- SimulateExtinctions(Network = net, 
-                                                                   Method = "Ordered", 
-                                                                   Order = primext_order,
-                                                                   IS = IS,
-                                                                   NetworkType = "Mutualistic",
-                                                                   ## PDF-driven rewiring block
-                                                                   Rewiring = function(x){x},
-                                                                   # decay = Rewiring
-                                                                   # RewiringDist = dist_mat, #
-                                                                   ### Probability matrix-driven block
-                                                                   RewiringDist = prob_mat, # 
-                                                                   RewiringProb = Rewiring,
-                                                                   forceFULL = TRUE
-                             )
-                             # ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                             #                                parallel = FALSE, ncores = parallel::detectCores(), 
-                             #                                SimNum = length(primext_namesC),
-                             #                                IS = IS,
-                             #                                NetworkType = "Mutualistic",
-                             #                                ## PDF-driven rewiring block
-                             #                                Rewiring = function(x){x},
-                             #                                # decay = Rewiring
-                             #                                # RewiringDist = dist_mat, #
-                             #                                ### Probability matrix-driven block
-                             #                                RewiringDist = prob_mat, # 
-                             #                                RewiringProb = Rewiring,
-                             #                                forceFULL = TRUE
-                             # )
-                             # ExtC_Rand <- list(sims = ExtC_Rand$sims,
-                             #                   R50 = ExtC_Rand$R50result,
-                             #                   R50 = ExtC_Rand$R100result,
-                             #                   Network = ExtC_Rand$nets)
-                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
-                           } 
-                         }
                          
-                         ## SSP585-Driven -----------------------------------------------------------
-                         # print("Extinction of Threatened Species (Climate Projections)")
-                         if("SSP585" %in% WHICH){
+                         if(WHICH == "SSP245"){
+                           primext_namesC <- names(x$prox_climate)[x$prox_climate > CutOffs$Climate] # random cutoff of climate risk severity selected here
+                           primext_order <- match(primext_namesC, rownames(x$Adjacency))
+                           RMNum <- length(primext_namesC) 
+                         }
+                         if(WHICH == "SSP585"){
                            primext_namesC <- names(x$prox_climateSSP585)[x$prox_climateSSP585 > CutOffs$Climate] # random cutoff of climate risk severity selected here
                            primext_order <- match(primext_namesC, rownames(x$Adjacency))
-                           CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA, NA, NA))
-                           names(CustOrder_ExtC) <- names(ExtC_Rand) <- c("sims", "R50", "R100", "Network")
+                           RMNum <- length(primext_namesC) 
+                         }
+
+                         CustOrder_ExtC <- ExtC_Rand <- as.list(c(NA, NA, NA, NA))
+                         names(CustOrder_ExtC) <- names(ExtC_Rand) <- c("sims", "R50", "R100", "Network")
+                         # if("SSP245" %in% WHICH){
                            if(length(primext_namesC) != 0){
-                             print("Climate")
                              CustOrder_ExtC <- SimulateExtinctions(Network = net, 
                                                                    Method = "Ordered", 
                                                                    Order = primext_order,
@@ -383,40 +305,41 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    RewiringProb = Rewiring,
                                                                    forceFULL = TRUE
                              )
-                             # ExtC_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                             #                                parallel = FALSE, ncores = parallel::detectCores(), 
-                             #                                SimNum = length(primext_namesC),
-                             #                                IS = IS,
-                             #                                NetworkType = "Mutualistic",
-                             #                                ## PDF-driven rewiring block
-                             #                                Rewiring = function(x){x},
-                             #                                # decay = Rewiring
-                             #                                # RewiringDist = dist_mat, #
-                             #                                ### Probability matrix-driven block
-                             #                                RewiringDist = prob_mat, # 
-                             #                                RewiringProb = Rewiring,
-                             #                                forceFULL = TRUE
-                             # )
-                             # ExtC_Rand <- list(sims = ExtC_Rand$sims,
-                             #                   R50 = ExtC_Rand$R50result,
-                             #                   R50 = ExtC_Rand$R100result,
-                             #                   Network = ExtC_Rand$nets)
-                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtC)
+                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 500,
+                                                            parallel = FALSE, ncores = parallel::detectCores(),
+                                                            SimNum = RMNum,
+                                                            IS = IS,
+                                                            NetworkType = "Mutualistic",
+                                                            ## PDF-driven rewiring block
+                                                            Rewiring = function(x){x},
+                                                            # decay = Rewiring
+                                                            # RewiringDist = dist_mat, #
+                                                            ### Probability matrix-driven block
+                                                            RewiringDist = prob_mat, #
+                                                            RewiringProb = Rewiring,
+                                                            forceFULL = TRUE
+                             )
+                             ExtC_Rand <- list(sims = ExtC_Rand$sims,
+                                               R50 = ExtC_Rand$R50result,
+                                               R50 = ExtC_Rand$R100result,
+                                               Network = ExtC_Rand$nets)
                            } 
-                         }
                          
-                         ## IUCN-Driven -------------------------------------------------------------
-                         # print("Extinction of Threatened Species (IUCN Categories)")
-                         primext_namesI <- names(x$prox_IUCN)[x$prox_IUCN > CutOffs$IUCN] # random cutoff of climate risk severity selected here
-                         primext_order <- match(primext_namesI, rownames(x$Adjacency))
-                         CustOrder_ExtI <- ExtI_Rand <- as.list(c(NA, NA, NA, NA))
-                         names(CustOrder_ExtI) <- names(ExtI_Rand) <- c("sims", "R50", "R100", "Network")
-                         if("IUCN" %in% WHICH){
-                           print("IUCN")
-                           if(length(primext_namesI) != 0){
-                             CustOrder_ExtI <- SimulateExtinctions(Network = net, 
-                                                                   Method = "Ordered", 
-                                                                   Order = primext_order,
+                         ## Centrality-Driven -------------------------------------------------------
+                         # print("Extinction of Keystone Species (Centrality)")
+                         namesML <- namesLM <- primext_namesC
+                         CustOrder_ExtSLM <- CustOrder_ExtSML <- as.list(c(NA, NA, NA, NA))
+                         names(CustOrder_ExtSLM) <- names(CustOrder_ExtSML) <- c("sims", "R50", "R100", "Network")
+                         if(length(primext_namesC) != 0){
+                           ### Most Connected ----
+                           print("Strength - Most to Least")
+                           proxcen <- x$prox_centrality[1:RMNum]
+                           primext_namesS <- names(proxcen)
+                           namesML <- primext_namesS
+                           primext_order <- match(primext_namesS, rownames(x$Adjacency))
+                           CustOrder_ExtSML <- SimulateExtinctions(Network = net, 
+                                                                   Method = "Ordered",
+                                                                   Order = primext_order, 
                                                                    IS = IS,
                                                                    NetworkType = "Mutualistic",
                                                                    ## PDF-driven rewiring block
@@ -426,42 +349,39 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    ### Probability matrix-driven block
                                                                    RewiringDist = prob_mat, # 
                                                                    RewiringProb = Rewiring,
-                                                                   forceFULL = TRUE
-                             )
-                             # ExtI_Rand <- RandomExtinctions(Network = net, nsim = 100, 
-                             #                                parallel = FALSE, ncores = parallel::detectCores(), 
-                             #                                SimNum = length(primext_namesI),
-                             #                                IS = IS,
-                             #                                NetworkType = "Mutualistic",
-                             #                                ## PDF-driven rewiring block
-                             #                                Rewiring = function(x){x},
-                             #                                # decay = Rewiring
-                             #                                # RewiringDist = dist_mat, #
-                             #                                ### Probability matrix-driven block
-                             #                                RewiringDist = prob_mat, # 
-                             #                                RewiringProb = Rewiring,
-                             #                                forceFULL = TRUE
-                             # )
-                             # ExtI_Rand <- list(sims = ExtI_Rand$sims,
-                             #                   R50 = ExtI_Rand$R50result,
-                             #                   R50 = ExtI_Rand$R100result,
-                             #                   Network = ExtI_Rand$nets)
-                             # CompareExtinctions(Nullmodel = Rando_Ext, Hypothesis = CustOrder_ExtI)
-                           } 
+                                                                   forceFULL = TRUE)
+                           
+                           
+                           ### Least Connected ----
+                           print("Strength - Least to Most")
+                           proxcen <- x$prox_centrality[(length(x$prox_centrality)-RMNum+1):length(x$prox_centrality)]
+                           primext_namesS <- names(proxcen)
+                           namesLM <- primext_namesS
+                           primext_order <- match(primext_namesS, rownames(x$Adjacency))
+                           CustOrder_ExtSLM <- SimulateExtinctions(Network = net, 
+                                                                   Method = "Ordered",
+                                                                   Order = primext_order, 
+                                                                   IS = IS,
+                                                                   NetworkType = "Mutualistic",
+                                                                   ## PDF-driven rewiring block
+                                                                   Rewiring = function(x){x},
+                                                                   # decay = Rewiring
+                                                                   # RewiringDist = dist_mat, #
+                                                                   ### Probability matrix-driven block
+                                                                   RewiringDist = prob_mat, # 
+                                                                   RewiringProb = Rewiring,
+                                                                   forceFULL = TRUE)
                          }
                          
                          ## Export ------------------------------------------------------------------
-                         # print(nrow(as.matrix(CustOrder_ExtI[[2]])))
-                         # as.matrix(CustOrder_ExtI[[2]])
-                         Fun.Save <- function(x = CustOrder_ExtI
-                                              # , 
-                                              # y = ExtI_Rand
+                         Fun.Save <- function(x = CustOrder_ExtC, 
+                                              y = ExtC_Rand
                                               ){
                            
                            ## This happens when no simulation was run
                            if(sum(is.na(as.matrix(x$Network))) != 0){
                              Pred <- as.matrix(NA)
-                             # Rand <- as.matrix(NA)
+                             Rand <- as.matrix(NA)
                            }else{
                              ## this is complete network annihilation, if this happens, we manually assign a zero-matrix
                              if(sum(as.matrix.network.adjacency(x$Network, attrname = "weight")) == 0 | 
@@ -470,71 +390,60 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                              }else{
                                Pred <- as.matrix.network.adjacency(x$Network, attrname = "weight")
                              }
-                             # Rand <- lapply(y$Network, as.matrix.network.adjacency, attrname = "weight") 
-                             # Rand[unlist(lapply(Rand, sum)) == 0 | 
-                             #        unlist(lapply(Rand, FUN = function(k){nrow(as.matrix(k))})) == 1] <- as.matrix(0) 
+                             Rand <- lapply(y$Network, as.matrix.network.adjacency, attrname = "weight")
+                             Rand[unlist(lapply(Rand, sum)) == 0 |
+                                    unlist(lapply(Rand, FUN = function(k){nrow(as.matrix(k))})) == 1] <- as.matrix(0)
                            }
-                           # if(nrow(as.matrix(x$Network)) != 1){
-                           #   Pred <- as.matrix.network.adjacency(x$Network, 
-                           #                                       attrname = "weight")
-                           #   Rand <- lapply(y$Network, as.matrix.network.adjacency,
-                           #                  attrname = "weight") 
-                           # }else{
-                           #   if(class(x$Network) == "network"){
-                           #     if(!is.na(get.vertex.attribute(x$Network, "vertex.names "))){
-                           #       Pred <- as.matrix.network.adjacency(x$Network, 
-                           #                                           attrname = "weight")
-                           #       Rand <- lapply(y$Network, as.matrix.network.adjacency,
-                           #                      attrname = "weight") 
-                           #     }else{
-                           #       Pred <- as.matrix(x$Network)
-                           #       Rand <- lapply(y$Network, as.matrix) 
-                           #     } 
-                           #   }else{
-                           #     if(!is.na(x$Network)){
-                           #       Pred <- as.matrix.network.adjacency(x$Network, 
-                           #                                           attrname = "weight")
-                           #       Rand <- lapply(y$Network, as.matrix.network.adjacency,
-                           #                      attrname = "weight") 
-                           #     }else{
-                           #       Pred <- as.matrix(x$Network)
-                           #       Rand <- lapply(y$Network, as.matrix) 
-                           #     }
-                           # }
-                           
-                           
-                           # }
-                           return(list(Pred = Pred
-                                       # , Rand = Rand
-                                       ))
+                           if(nrow(as.matrix(x$Network)) != 1){ # a matrix with more than one row and column (i.e., non-total annihilation)
+                             Pred <- as.matrix.network.adjacency(x$Network,
+                                                                 attrname = "weight")
+                             Rand <- lapply(y$Network, as.matrix.network.adjacency,
+                                            attrname = "weight")
+                           }else{
+                             if(class(x$Network) == "network"){
+                               if(!is.na(get.vertex.attribute(x$Network, "vertex.names "))){
+                                 Pred <- as.matrix.network.adjacency(x$Network,
+                                                                     attrname = "weight")
+                                 Rand <- lapply(y$Network, as.matrix.network.adjacency,
+                                                attrname = "weight")
+                               }else{
+                                 Pred <- as.matrix(x$Network)
+                                 Rand <- lapply(y$Network, as.matrix)
+                               }
+                             }else{
+                               if(!is.na(x$Network)){
+                                 Pred <- as.matrix.network.adjacency(x$Network,
+                                                                     attrname = "weight")
+                                 Rand <- lapply(y$Network, as.matrix.network.adjacency,
+                                                attrname = "weight")
+                               }else{
+                                 Pred <- as.matrix(x$Network)
+                                 Rand <- lapply(y$Network, as.matrix)
+                               }
+                           }
+                           }
+                           return(list(Pred = Pred, Rand = Rand))
                          }
                          
-                         list(Strength = list(Removed = primext_namesS,
-                                              Prediction = Fun.Save(x = CustOrder_ExtS
-                                                                    # , y = ExtS_Rand
-                                                                    )$Pred
-                                              # ,
-                                              # Random = Fun.Save(x = CustOrder_ExtS, y = ExtS_Rand)$Rand
-                         ),
+                         list(
                          Climate = list(Removed = primext_namesC,
-                                        Prediction = Fun.Save(x = CustOrder_ExtC
-                                                              # , y = ExtC_Rand
-                                                              )$Pred
-                                        # ,
-                                        # Random = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Rand
+                                        Prediction = Fun.Save(x = CustOrder_ExtC, 
+                                                              y = ExtC_Rand
+                                                              )$Pred,
+                                        Random = Fun.Save(x = CustOrder_ExtC, y = ExtC_Rand)$Rand
                          ),
-                         IUCN = list(Removed = primext_namesI,
-                                     Prediction = Fun.Save(x = CustOrder_ExtI
-                                                           # , y = ExtI_Rand
-                                                           )$Pred
-                                     # ,
-                                     # Random = Fun.Save(x = CustOrder_ExtI, y = ExtI_Rand)$Rand
+                         MostToLeast = list(Removed = namesML,
+                              Prediction = Fun.Save(x = CustOrder_ExtSML, 
+                                                    y = ExtC_Rand
+                              )$Pred,
+                              Random = Fun.Save(x = CustOrder_ExtSML, y = ExtC_Rand)$Rand
+                         ),
+                         LeastToMost = list(Removed = namesLM,
+                              Prediction = Fun.Save(x = CustOrder_ExtSLM, 
+                                                    y = ExtC_Rand
+                              )$Pred,
+                              Random = Fun.Save(x = CustOrder_ExtSLM, y = ExtC_Rand)$Rand
                          )
-                         # ,
-                         # IUCN_Climate = list(Removed = primext_namesCombin,
-                         #                     Prediction = as.matrix(CustOrder_ExtIC[[2]]),
-                         #                     Random = lapply(ExtIC_Rand$nets, as.matrix)
-                         # )
                          )
                        })
     names(Sim_ls) <- names(AnalysisData_ls)

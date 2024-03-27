@@ -209,57 +209,76 @@ parallel::clusterExport(cl,
 # POST-EXCTINCTION ======================================================
 message("### EXTINCTION SIMULATION(S) ###")
 
-if(all(unlist(
+if(
+  all(unlist(
   lapply(list(file.path(Dir.Exports, "PlotTopoAll_ls.RData"),
-              file.path(Dir.Exports, "PlotTopoPlants_ls.RData"),
-              file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"),
-              file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData")
+              file.path(Dir.Exports, "PlotTopoSSP585_ls.RData")
+              # ,
+              # file.path(Dir.Exports, "PlotTopoPlants_ls.RData"),
+              # file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"),
+              # file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData")
   ),
   file.exists)
-))){
-  print("Simulations and topologies already calculated - Loading 4 files from hard drive")
+))
+){
+  # print("Simulations and topologies already calculated - Loading 4 files from hard drive")
+  print("Simulations and topologies already calculated - Loading 2 files from hard drive")
   PlotTopoAll_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
-  PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
-  PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
-  PlotTopoClimSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
+  PlotTopoSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoSSP585_ls.RData"))
+  # PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
+  # PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
+  # PlotTopoClimSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
 }else{
   ## Extinction Simulations ---------------------------------------------
   for(Rewiring_Iter in seq(0,  1, 0.05)){
     for(IS_iter in seq(0, 1, 0.05)){
-      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "ALL",
+      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP245", WHICH = c("SSP245"), 
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-      TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "ALL",
+      stop("Fix TopoComp function")
+      TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "SSP245",
                                   IS = IS_iter, Rewiring = Rewiring_Iter,
                                   CutOffs = CutOffs, Pre = PreExt_df)
-      Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
-                            IS = IS_iter, Rewiring = Rewiring_Iter,
-                            CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-      TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
-                                  IS = IS_iter, Rewiring = Rewiring_Iter,
-                                  CutOffs = CutOffs)
-      Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
-                            IS = IS_iter, Rewiring = Rewiring_Iter,
-                            CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-      TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
-                                  IS = IS_iter, Rewiring = Rewiring_Iter,
-                                  CutOffs = CutOffs)
-      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP585", WHICH = "SSP585",
+      
+      Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP585", WHICH = c("SSP585"),
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
       TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "SSP585",
-                                  IS = IS_iter, Rewiring = Rewiring_Iter, CutOffs = CutOffs)
+                                  IS = IS_iter, Rewiring = Rewiring_Iter,
+                                  CutOffs = CutOffs, Pre = PreExt_df)
+      # Sim_ls <- FUN_SimComp(PlantAnim = plants_sp, RunName = "Plants",
+      #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+      #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+      # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Plants",
+      #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+      #                             CutOffs = CutOffs)
+      # Sim_ls <- FUN_SimComp(PlantAnim = animals_sp, RunName = "Animals",
+      #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+      #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+      # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "Animals",
+      #                             IS = IS_iter, Rewiring = Rewiring_Iter,
+      #                             CutOffs = CutOffs)
+      # Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP585", WHICH = "SSP585",
+      #                       IS = IS_iter, Rewiring = Rewiring_Iter,
+      #                       CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
+      # TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "SSP585",
+      #                             IS = IS_iter, Rewiring = Rewiring_Iter, CutOffs = CutOffs)
     }
   }
 
   ## Topology Loading and Storing as one object -------------------------
   ## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
-  PlotTopoAll_ls <- loadTopo(RunName = "ALL", CutOffs = CutOffs, Pre = PreExt_df)
+  stop("fix loadTopo function")
+  PlotTopoAll_ls <- loadTopo(RunName = "SSP245", CutOffs = CutOffs, Pre = PreExt_df)
   saveObj(PlotTopoAll_ls, file.name = file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
-  PlotTopoPlants_ls <- loadTopo(RunName = "Plants", CutOffs = CutOffs, Pre = PreExt_df)
-  saveObj(PlotTopoPlants_ls, file.name = file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
-  PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs, Pre = PreExt_df)
-  saveObj(PlotTopoAnimals_ls, file.name = file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
-  PlotTopoAnimals_ls <- loadTopo(RunName = "SSP585", CutOffs = CutOffs, Pre = PreExt_df)
-  saveObj(PlotTopoAnimals_ls, file.name = file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
+  
+  PlotTopoSSP585_ls <- loadTopo(RunName = "SSP585", CutOffs = CutOffs, Pre = PreExt_df)
+  saveObj(PlotTopoSSP585_ls, file.name = file.path(Dir.Exports, "PlotTopoSSP585_ls.RData"))
+  
+  # PlotTopoPlants_ls <- loadTopo(RunName = "Plants", CutOffs = CutOffs, Pre = PreExt_df)
+  # saveObj(PlotTopoPlants_ls, file.name = file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
+  # PlotTopoAnimals_ls <- loadTopo(RunName = "Animals", CutOffs = CutOffs, Pre = PreExt_df)
+  # saveObj(PlotTopoAnimals_ls, file.name = file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
+  # PlotTopoAnimals_ls <- loadTopo(RunName = "SSP585", CutOffs = CutOffs, Pre = PreExt_df)
+  # saveObj(PlotTopoAnimals_ls, file.name = file.path(Dir.Exports, "PlotTopoClimSSP585_ls.RData"))
 }
