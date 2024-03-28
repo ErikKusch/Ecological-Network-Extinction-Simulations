@@ -475,18 +475,17 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
                            FUN = function(netID){
                              # netID <- names(Sim_ls)[1]
                              print(netID)
-                             Storage_ls <- list(Strength = list(Removed = NA, Prediction = NA, Random = NA),
-                                                Climate = list(Removed = NA, Prediction = NA, Random = NA),
-                                                IUCN = list(Removed = NA, Prediction = NA, Random = NA)
-                                                # ,
-                                                # IUCN_Climate = list(Removed = NA, Prediction = NA, Random = NA)
+                             Storage_ls <- list(Climate = list(Removed = NA, Prediction = NA, Random = NA),
+                                                MostToLeast = list(Removed = NA, Prediction = NA, Random = NA),
+                                                LeastToMost = list(Removed = NA, Prediction = NA, Random = NA)
                              )
                              for(i in names(Storage_ls)){
                                if(length(Sim_ls[[netID]][[i]][["Removed"]]) != 0){
                                  Storage_ls[[i]][["Removed"]] <- length(Sim_ls[[netID]][[i]][["Removed"]])
                                  Storage_ls[[i]][["Prediction"]] <- FUN_Topo(as.matrix(Sim_ls[[netID]][[i]][["Prediction"]]))
-                                 # Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
-                                 # Storage_ls[[i]][["Random"]] <- do.call(rbind, Rand_ls) 
+                                 Rand_ls <- lapply(Sim_ls[[netID]][[i]][["Random"]], FUN_Topo)
+                                 Storage_ls[[i]][["Random"]] <- do.call(rbind, Rand_ls)
+                                 Storage_ls[[i]][["Random"]]$netID <- netID
                                }else{
                                  Storage_ls[[i]][["Removed"]] <- 0
                                  Storage_ls[[i]][["Prediction"]] <- PreExt_df[PreExt_df$netID == netID, 1:8]
@@ -497,73 +496,54 @@ FUN_TopoComp <- function(Sim_ls = NULL, RunName = "ALL", IS, Rewiring, CutOffs, 
     # parallel::stopCluster(cl)
     names(PostExt_ls) <- names(Sim_ls)
     
-    
-    ## Topology Extraction
-    if(RunName == "SSP585"){
-      Topo_ls <- list(Climate = NA
+    Topo_ls <- list(Climate = NA,
+                    MostToLeast = NA,
+                    LeastToMost = NA
       )
-    }else{
-      Topo_ls <- list(Strength = NA,
-                      Climate = NA,
-                      IUCN = NA
-                      # ,
-                      # IUCN_Climate = NA
-      )
-    }
-    
     for(k in names(Topo_ls)){
       # k <- names(Topo_ls)[3]
       # print(k)
       Rem_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Removed"))
       Pred_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Prediction"))
-      Pred_df$netID <- names(Sim_ls)
+      rownames(Rem_df) <- Pred_df$netID <- names(Sim_ls)
       Pred_df$Proxy <- k
       Pred_df$Simulation <- "Prediction"
       Pred_df$Removed <- Rem_df[,1]
-      # Rand_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"))
-      # if(is.null(Rand_df)){ # this happens when no simulation could be run for the entire list of networks for this proxy
-      #   Topo_ls[[k]] <- Pred_df
-      #   next()
-      # }else{
-      #   Rand_df <- Rand_df[unlist(lapply(strsplit(rownames(Rand_df), split = "[.]"), "[[", 1)) %in% rownames(Rem_df)[Rem_df != 0], ]
-      #   if(is.logical(Rand_df)){
-      #     Topo_ls[[k]] <- Pred_df
-      #     next()
-      #   }
-      #   Rand_df$netID <- rep(names(unlist(lapply(lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"), nrow))), # these are the names for which random sims could be run
-      #                        each = 1e2)
-      #   Rand_df$Proxy <- k
-      #   Rand_df$Simulation <- "Random"
-      #   Rand_df$Removed <- 9999
-        # print(head(Pred_df))
-        # print(head(Rand_df))
-        # Topo_ls[[k]] <- rbind(Pred_df, Rand_df) 
+      Rand_df <- do.call(rbind, lapply(lapply(PostExt_ls, "[[", k), "[[", "Random"))
+      if(is.null(Rand_df)){ # this happens when no simulation could be run for the entire list of networks for this proxy
         Topo_ls[[k]] <- Pred_df
+        next()
+      }else{
+        Rand_df <- Rand_df[!is.na(Rand_df$netID), ] # removing NA rows which come from networks for which no random simulations were executed
+        }
+        Rand_df$Proxy <- k
+        Rand_df$Simulation <- "Random"
+        Rand_df$Removed <- Rem_df[match(Rand_df$netID, rownames(Rem_df))]
+        Topo_ls[[k]] <- rbind(Pred_df, Rand_df)
       }
     }
     Topo_df <- do.call(rbind, Topo_ls)
     ## Effect size calculation
     MeanPred <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Prediction",],
                           FUN = mean, na.rm = TRUE, na.action=NULL)
-    # MeanRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
-    #                       FUN = mean, na.rm = TRUE, na.action=NULL)
-    # SDRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
-    #                     FUN = sd, na.rm = TRUE, na.action=NULL)
-    # Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
-    # Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
-    # Eff_df <-  Merge1_df[,4:(ncol(MeanPred)-1)] - # mean predictions
-    #   Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-5)]  # mean randoms
-    # Eff_df$netID <- Merge1_df$netID
-    # Eff_df$Proxy <- Merge1_df$Proxy
-    # 
-    # EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):(ncol(Merge1_df)-1)]
-    # EffSD_df$netID <- Merge1_df$netID
-    # EffSD_df$Proxy <- Merge1_df$Proxy
-    # colnames(Eff_df) <- colnames(EffSD_df)
+    MeanRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
+                          FUN = mean, na.rm = TRUE, na.action=NULL)
+    SDRand <- aggregate(.~netID+Proxy+Simulation, data = Topo_df[Topo_df$Simulation == "Random",],
+                        FUN = sd, na.rm = TRUE, na.action=NULL)
+    Merge1_df  <- merge(MeanPred, MeanRand, by = c("netID", "Proxy"), all = TRUE)
+    Merge1_df  <- merge(Merge1_df, SDRand, by = c("netID", "Proxy"), all = TRUE)
+    Eff_df <-  Merge1_df[,4:(ncol(MeanPred)-1)] - # mean predictions
+      Merge1_df[,(ncol(MeanPred)+2):(ncol(MeanPred)+2+ncol(MeanPred)-5)]  # mean randoms
+    Eff_df$netID <- Merge1_df$netID
+    Eff_df$Proxy <- Merge1_df$Proxy
+
+    EffSD_df <- Merge1_df[,(ncol(Merge1_df)-(ncol(MeanPred)-4)):(ncol(Merge1_df)-1)]
+    EffSD_df$netID <- Merge1_df$netID
+    EffSD_df$Proxy <- Merge1_df$Proxy
+    colnames(Eff_df) <- colnames(EffSD_df)
     
-    Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df
-                    # , Eff_df = Eff_df, EffSD_df = EffSD_df
-                    # , Eff_df = Eff_df, EffSD_df = EffSD_df
+    Save_ls <- list(Topo_ls = PostExt_ls, Topo_df = Topo_df, 
+                    Eff_df = Eff_df, EffSD_df = EffSD_df
                     )
     
     ## Data Return

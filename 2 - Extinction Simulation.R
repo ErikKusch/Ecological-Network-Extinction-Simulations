@@ -235,11 +235,9 @@ if(
       Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP245", WHICH = c("SSP245"), 
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
-      stop("Fix TopoComp function")
       TopoComp_ls <- FUN_TopoComp(Sim_ls = Sim_ls, RunName = "SSP245",
                                   IS = IS_iter, Rewiring = Rewiring_Iter,
                                   CutOffs = CutOffs, Pre = PreExt_df)
-      
       Sim_ls <- FUN_SimComp(PlantAnim = NULL, RunName = "SSP585", WHICH = c("SSP585"),
                             IS = IS_iter, Rewiring = Rewiring_Iter,
                             CutOffs = CutOffs, PotPartners = RewClass_ls, Traits = meta_df)
