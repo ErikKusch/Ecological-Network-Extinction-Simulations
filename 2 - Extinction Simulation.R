@@ -29,7 +29,7 @@ load(file.path(Dir.Data, "AnalysesData.RData")) # load the data needed for the a
 #' - networks_df: Metadata for all networks expressed as adjacency matrices in List_ls (column "net.id" in networks_df can be matched to List_ls names)
 #' - Prox.Centrality_ls: List object of which each element is a named vector that sorts the species for each network in our study from most to least central (as measured by connection strength)
 #' - Prox.Climate_ls: List object of which each element a list containing a named vector that sorts the species for each network in our study from most to least at risk from a climate-standpoint and a dataframe showing the climate risk for each species for temperature and soil moisture
-#' - Prox.IUCN_df: data frame containing IUCN criteria for all species in our analyses.
+#' - Prox.IUCN_df: data frame containing IUCN criteria for all species in our analyses. NOT ANYMORE
 #' - traits_df: data frame of trait expressions per species in our analysis
 #' - animals_gowdis: square matrix of animal species dissimilarity in trait space
 #' - plants_gowdis: square matrix of plant species dissimilarity in trait space
@@ -37,21 +37,21 @@ load(file.path(Dir.Data, "AnalysesData.RData")) # load the data needed for the a
 
 ## Data Manipulation ----------------------------------------------------
 print("Reformatting Data")
-### IUCN Categories as numbers
-Prox.IUCN_df$Category <- toupper(substrRight(Prox.IUCN_df$Category, 2)) # reduce categories to just two letters in uppercase
-## assigning levels to categories and storing them as numbers in the data frame
-IUCN_levels <- factor(Prox.IUCN_df$Category,
-                      levels = c(
-                        "DD", # data deficient
-                        "LC", # least concern
-                        "CD", # conservation dependant
-                        "NT", # near threatened
-                        "VU", # vulnerable
-                        "EN", # endangered
-                        "CR" # critically endangered
-                      )
-)
-Prox.IUCN_df$CategoryNum <- as.numeric(IUCN_levels)
+# ### IUCN Categories as numbers
+# Prox.IUCN_df$Category <- toupper(substrRight(Prox.IUCN_df$Category, 2)) # reduce categories to just two letters in uppercase
+# ## assigning levels to categories and storing them as numbers in the data frame
+# IUCN_levels <- factor(Prox.IUCN_df$Category,
+#                       levels = c(
+#                         "DD", # data deficient
+#                         "LC", # least concern
+#                         "CD", # conservation dependant
+#                         "NT", # near threatened
+#                         "VU", # vulnerable
+#                         "EN", # endangered
+#                         "CR" # critically endangered
+#                       )
+# )
+# Prox.IUCN_df$CategoryNum <- as.numeric(IUCN_levels)
 
 ### Readying objects in List_ls for analyses
 AnalysisData_ls <- pblapply(names(List_ls), function(y){
@@ -68,9 +68,9 @@ AnalysisData_ls <- pblapply(names(List_ls), function(y){
   E(g)$weight <- x_df$Freq
   x_sq <- t(as_adjacency_matrix(g, attr = "weight", sparse = FALSE))
   
-  # IUCN sorting
-  IUCN_vec <- Sort.DF(Data = Prox.IUCN_df[Prox.IUCN_df$Species %in% unlist(dimnames(x)), ], Column = "CategoryNum", decreasing = TRUE)$CategoryNum
-  names(IUCN_vec) <- Sort.DF(Data = Prox.IUCN_df[Prox.IUCN_df$Species %in% unlist(dimnames(x)), ], Column = "CategoryNum", decreasing = TRUE)$Species
+  # # IUCN sorting
+  # IUCN_vec <- Sort.DF(Data = Prox.IUCN_df[Prox.IUCN_df$Species %in% unlist(dimnames(x)), ], Column = "CategoryNum", decreasing = TRUE)$CategoryNum
+  # names(IUCN_vec) <- Sort.DF(Data = Prox.IUCN_df[Prox.IUCN_df$Species %in% unlist(dimnames(x)), ], Column = "CategoryNum", decreasing = TRUE)$Species
   
   list(
     # square adjacency matrix
@@ -83,9 +83,10 @@ AnalysisData_ls <- pblapply(names(List_ls), function(y){
     prox_centrality = Prox.Centrality_ls[[y]],
     # Climate
     prox_climate = ProxClim_ls[["ssp245"]][[y]]$Order,
-    prox_climateSSP585 = ProxClim_ls[["ssp585"]][[y]]$Order,
-    # IUCN
-    prox_IUCN = IUCN_vec
+    prox_climateSSP585 = ProxClim_ls[["ssp585"]][[y]]$Order
+    # ,
+    # # IUCN
+    # prox_IUCN = IUCN_vec
   )
 })
 names(AnalysisData_ls) <- names(List_ls)

@@ -131,45 +131,45 @@ if(file.exists(file.path(Dir.D.Occurrences, "Centroids.RData"))){
   save(Shapes_ct, file = file.path(Dir.D.Occurrences, "Centroids.RData"))
 }
 
-## PROTECTED AREAS ---------------------------------------------------------
-# CITATION: UNEP-WCMC and IUCN (2022), Protected Planet: The World Database on Protected Areas (WDPA) and World Database on Other Effective Area-based Conservation Measures (WD-OECM) [Online], March 2022, Cambridge, UK: UNEP-WCMC and IUCN. Available at: www.protectedplanet.net.
-Dir.D.Protected <- file.path(Dir.Data, "Protected Areas")
-if(!dir.exists(Dir.D.Protected)){dir.create(Dir.D.Protected)}
-if(!file.exists(file.path(Dir.D.Protected, "ProtectedAreas.RData"))){
-  download.file(url = "https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_Mar2022_Public_all_shp.zip", 
-                destfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp.zip"))
-  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp.zip"), 
-        exdir = Dir.D.Protected,
-        files = c("WDPA_WDOECM_Mar2022_Public_all_shp_0.zip",
-                  "WDPA_WDOECM_Mar2022_Public_all_shp_1.zip",
-                  "WDPA_WDOECM_Mar2022_Public_all_shp_2.zip"))
-  ## repo1
-  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_0.zip"),
-        exdir = Dir.D.Protected)
-  ProtectedAreas_shp <- readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
-  save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
-  ## repo2
-  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_1.zip"),
-        exdir = Dir.D.Protected)
-  ProtectedAreas_shp <- rbind(ProtectedAreas_shp,
-                              readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
-  )
-  save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
-  ## repo3
-  unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_0.zip"),
-        exdir = Dir.D.Protected)
-  ProtectedAreas_shp <- rbind(ProtectedAreas_shp,
-                              readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
-  )
-  save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
-  ## combine shapes
-  # ProtectedAreas_shp <- raster::aggregate(ProtectedAreas_shp)
-  # save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
-  ## clean directory
-  unlink(list.files(Dir.D.Protected, full.names = TRUE, 
-                    pattern = "WDPA_WDOECM_Mar2022_Public_all_shp"))
-}
-load(file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+# ## PROTECTED AREAS ---------------------------------------------------------
+# # CITATION: UNEP-WCMC and IUCN (2022), Protected Planet: The World Database on Protected Areas (WDPA) and World Database on Other Effective Area-based Conservation Measures (WD-OECM) [Online], March 2022, Cambridge, UK: UNEP-WCMC and IUCN. Available at: www.protectedplanet.net.
+# Dir.D.Protected <- file.path(Dir.Data, "Protected Areas")
+# if(!dir.exists(Dir.D.Protected)){dir.create(Dir.D.Protected)}
+# if(!file.exists(file.path(Dir.D.Protected, "ProtectedAreas.RData"))){
+#   download.file(url = "https://d1gam3xoknrgr2.cloudfront.net/current/WDPA_WDOECM_Mar2022_Public_all_shp.zip", 
+#                 destfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp.zip"))
+#   unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp.zip"), 
+#         exdir = Dir.D.Protected,
+#         files = c("WDPA_WDOECM_Mar2022_Public_all_shp_0.zip",
+#                   "WDPA_WDOECM_Mar2022_Public_all_shp_1.zip",
+#                   "WDPA_WDOECM_Mar2022_Public_all_shp_2.zip"))
+#   ## repo1
+#   unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_0.zip"),
+#         exdir = Dir.D.Protected)
+#   ProtectedAreas_shp <- readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
+#   save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+#   ## repo2
+#   unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_1.zip"),
+#         exdir = Dir.D.Protected)
+#   ProtectedAreas_shp <- rbind(ProtectedAreas_shp,
+#                               readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
+#   )
+#   save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+#   ## repo3
+#   unzip(zipfile = file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp_0.zip"),
+#         exdir = Dir.D.Protected)
+#   ProtectedAreas_shp <- rbind(ProtectedAreas_shp,
+#                               readOGR(file.path(Dir.D.Protected, "WDPA_WDOECM_Mar2022_Public_all_shp-polygons.shp"))[,1]
+#   )
+#   save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+#   ## combine shapes
+#   # ProtectedAreas_shp <- raster::aggregate(ProtectedAreas_shp)
+#   # save(ProtectedAreas_shp, file = file.path(Dir.D.Protected, "ProtectedAreas.RData"))
+#   ## clean directory
+#   unlink(list.files(Dir.D.Protected, full.names = TRUE, 
+#                     pattern = "WDPA_WDOECM_Mar2022_Public_all_shp"))
+# }
+# load(file.path(Dir.D.Protected, "ProtectedAreas.RData"))
 
 # ABIOTIC DATA =============================================================
 ## BASELINE ----------------------------------------------------------------
@@ -600,18 +600,18 @@ if(file.exists(file.path(Dir.Data, "ClimPrefs.RData"))){
   NewPrefs_pos <- which(names(occ_ls) %nin% Preferences_df$spec)
   if(length(NewPrefs_pos)>0){
     occ_ls2 <- occ_ls[NewPrefs_pos]
-    Preferences_df <- Clim_Preferences(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = TRUE, Boot = 1e3)
+    Preferences_df <- Clim_Preferences(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = FALSE, Boot = 1e3)
     save(Preferences_df, file = file.path(Dir.Data, "ClimPrefs.RData"))
   }else{
     print("Already calculated climatic preferences for all species")
   }
 }else{
-  Preferences_df <- Clim_Preferences(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = TRUE, Boot = 1e3)
+  Preferences_df <- Clim_Preferences(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = FALSE, Boot = 1e3)
   save(Preferences_df, file = file.path(Dir.Data, "ClimPrefs.RData"))
 }
-Preferences_df$Temp_median <- as.numeric(Preferences_df$Temp_median)
+Preferences_df$Temp_mean <- as.numeric(Preferences_df$Temp_mean)
 Preferences_df$Temp_sd <- as.numeric(Preferences_df$Temp_sd)
-Preferences_df$Water_median <- as.numeric(Preferences_df$Water_median)
+Preferences_df$Water_mean <- as.numeric(Preferences_df$Water_mean)
 Preferences_df$Water_sd <- as.numeric(Preferences_df$Water_sd)
 
 # EXTINCTION PROXIES =======================================================
@@ -668,8 +668,8 @@ for(ssp in ssps){
                             Qsoil = NA)
       for(speciesIter in Prox_df$species){
         PrefIter_df <- Preferences_df[Preferences_df$spec == speciesIter, ]
-        Prox_df[Prox_df$species == speciesIter, 2:3] <- c((PrefIter_df$Temp_median - TairDiff) / PrefIter_df$Temp_sd,
-                                                          (PrefIter_df$Water_median - QsoilDiff) / PrefIter_df$Water_sd)
+        Prox_df[Prox_df$species == speciesIter, 2:3] <- c((PrefIter_df$Temp_mean - TairDiff) / PrefIter_df$Temp_sd,
+                                                          (PrefIter_df$Water_mean - QsoilDiff) / PrefIter_df$Water_sd)
       }
       
       ## creating order of extinction risk /climate stress
@@ -694,92 +694,94 @@ for(ssp in ssps){
 }
 Prox.Climate_ls <- ProxClim_ls[["ssp245"]]
 
-## IUCN Criteria -----------------------------------------------------------
-message("## IUCN Criteria")
-if(!file.exists(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))){
-  Prox.IUCN_df <- data.frame(Species = names(occ_ls),
-                             Category = NA,
-                             Source = NA,
-                             N = NA)
-}else{
-  Prox.IUCN_df <- readRDS(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
-}
-IUCN_spec <- names(occ_ls)[names(occ_ls) %nin% Prox.IUCN_df$Species[!is.na(Prox.IUCN_df$Category)]] # identify species for which IUCN records need to be retrieved
-if(length(IUCN_spec) > 0){
-  ### Direct IUCN retrieval ----
-  print("Direct retrieval of IUCN criteria")
-  ## 1240 species are directly retrieved
-  IUCN_ls <- pblapply(IUCN_spec, FUN = function(x){
-    rl_search(x, key = IUCN_Key)$result
-  }
-  )
-  names(IUCN_ls) <- IUCN_spec
-  Ident_df <- do.call(rbind, IUCN_ls[which(unlist(lapply(IUCN_ls, class)) == "data.frame")])
-  if(!is.null(Ident_df)){
-    Prox.IUCN_df$Category[match(Ident_df$scientific_name, Prox.IUCN_df$Species)] <- Ident_df$category
-    Prox.IUCN_df$Source[match(Ident_df$scientific_name, Prox.IUCN_df$Species)] <- "IUCN"
-    saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
-  }
-  
-  ## Calculating IUCN criteria ----
-  print("Computation of IUCN criteria where needed")
-  Calc_spec <- Prox.IUCN_df$Species[is.na(Prox.IUCN_df$Category)]
-  Calc_ls <- occ_ls[names(occ_ls) %in% Calc_spec] ## 480 species need IUCN calculations
-  Calc_ls <- lapply(names(Calc_ls), FUN = function(x){
-    Calc_ls[[x]]$tax <- x
-    Calc_ls[[x]]
-  })
-  Calc_df <- do.call(rbind, Calc_ls)
-  Calc_df <- Calc_df[!Calc_df$Out_Enviro & !Calc_df$Out_Centroid, ]
-  Calc_df <- as.data.frame(Calc_df)
-  Calc_df <- Calc_df[,-c(1, 4:6)]
-  colnames(Calc_df) <- c("ddlon", "ddlat", "tax")
-  Calc_df <- data.frame(ddlat = Calc_df$ddlat,
-                        ddlon = Calc_df$ddlon,
-                        tax = Calc_df$tax)
-  ## check for which species longitude range does not exceed 180° (a limitation of the Conr package)
-  print("Figuring out for which species entire data range can be used and subsequent IUCN criteria computation")
-  Longi_check <- pbsapply(unique(Calc_df$tax), FUN = function(i){
-    # print(diff(range(Calc_df$ddlon[Calc_df$tax == i])))
-    diff(range(Calc_df$ddlon[Calc_df$tax == i])) >= 180}
-  )
-  ## 394 species can be calculated right away
-  IUCN_calc <- IUCN.eval(DATA = Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], ],
-                         parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
-                         protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
-  )
-  Prox.IUCN_df$Source[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- "ConR"
-  Prox.IUCN_df$Category[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- IUCN_calc$Category_CriteriaB
-  Prox.IUCN_df$N[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <-  table(Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], "tax"])
-  saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
-  ## limitation of species occurrences to the 180° longitude range for which there is the most data, 86 need to be adjusted
-  print("Figuring out for which species parts of the data range need to be used, selecting the most data-rich range, and subsequent IUCN criteria computation")
-  Calc_df2 <- Calc_df[Calc_df$tax %in% names(Longi_check)[Longi_check], ]
-  for(i in names(Longi_check)[Longi_check]){
-    num_vec <- rep(NA, length(-180:1))
-    names(num_vec) <- -180:1
-    for(k in -180:1){
-      num_vec[which(k == names(num_vec))] <- 
-        sum(Calc_df2$ddlon[Calc_df2$tax == i] >= k & Calc_df2$ddlon[Calc_df2$tax == i] < k+180)
-    }
-    x <- as.numeric(names(which.max(num_vec)))
-    Calc_df2$ddlon[Calc_df2$tax == i][
-      Calc_df2$ddlon[Calc_df2$tax == i] < x |
-        Calc_df2$ddlon[Calc_df2$tax == i] >= x+180] <- NA
-  }
-  Calc_df2 <- na.omit(Calc_df2)
-  IUCN_calc2 <- IUCN.eval(DATA = Calc_df2, 
-                          parallel = FALSE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
-                          protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
-  )
-  Prox.IUCN_df$Source[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- "ConR - Reduced"
-  Prox.IUCN_df$Category[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- IUCN_calc2$Category_CriteriaB
-  Prox.IUCN_df$N[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- table(Calc_df$tax)
-  saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
-}else{
-  print("All IUCN criteria already obtained")
-}
+# ## IUCN Criteria -----------------------------------------------------------
+# message("## IUCN Criteria")
+# if(!file.exists(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))){
+#   Prox.IUCN_df <- data.frame(Species = names(occ_ls),
+#                              Category = NA,
+#                              Source = NA,
+#                              N = NA)
+# }else{
+#   Prox.IUCN_df <- readRDS(file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+# }
+# IUCN_spec <- names(occ_ls)[names(occ_ls) %nin% Prox.IUCN_df$Species[!is.na(Prox.IUCN_df$Category)]] # identify species for which IUCN records need to be retrieved
+# if(length(IUCN_spec) > 0){
+#   ### Direct IUCN retrieval ----
+#   print("Direct retrieval of IUCN criteria")
+#   ## 1240 species are directly retrieved
+#   IUCN_ls <- pblapply(IUCN_spec, FUN = function(x){
+#     rl_search(x, key = IUCN_Key)$result
+#   }
+#   )
+#   names(IUCN_ls) <- IUCN_spec
+#   Ident_df <- do.call(rbind, IUCN_ls[which(unlist(lapply(IUCN_ls, class)) == "data.frame")])
+#   if(!is.null(Ident_df)){
+#     Prox.IUCN_df$Category[match(Ident_df$scientific_name, Prox.IUCN_df$Species)] <- Ident_df$category
+#     Prox.IUCN_df$Source[match(Ident_df$scientific_name, Prox.IUCN_df$Species)] <- "IUCN"
+#     saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+#   }
+#   
+#   ## Calculating IUCN criteria ----
+#   print("Computation of IUCN criteria where needed")
+#   Calc_spec <- Prox.IUCN_df$Species[is.na(Prox.IUCN_df$Category)]
+#   Calc_ls <- occ_ls[names(occ_ls) %in% Calc_spec] ## 480 species need IUCN calculations
+#   Calc_ls <- lapply(names(Calc_ls), FUN = function(x){
+#     Calc_ls[[x]]$tax <- x
+#     Calc_ls[[x]]
+#   })
+#   Calc_df <- do.call(rbind, Calc_ls)
+#   Calc_df <- Calc_df[!Calc_df$Out_Enviro & !Calc_df$Out_Centroid, ]
+#   Calc_df <- as.data.frame(Calc_df)
+#   Calc_df <- Calc_df[,-c(1, 4:6)]
+#   colnames(Calc_df) <- c("ddlon", "ddlat", "tax")
+#   Calc_df <- data.frame(ddlat = Calc_df$ddlat,
+#                         ddlon = Calc_df$ddlon,
+#                         tax = Calc_df$tax)
+#   ## check for which species longitude range does not exceed 180° (a limitation of the Conr package)
+#   print("Figuring out for which species entire data range can be used and subsequent IUCN criteria computation")
+#   Longi_check <- pbsapply(unique(Calc_df$tax), FUN = function(i){
+#     # print(diff(range(Calc_df$ddlon[Calc_df$tax == i])))
+#     diff(range(Calc_df$ddlon[Calc_df$tax == i])) >= 180}
+#   )
+#   ## 394 species can be calculated right away
+#   IUCN_calc <- IUCN.eval(DATA = Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], ],
+#                          parallel = TRUE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
+#                          protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
+#   )
+#   Prox.IUCN_df$Source[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- "ConR"
+#   Prox.IUCN_df$Category[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <- IUCN_calc$Category_CriteriaB
+#   Prox.IUCN_df$N[match(IUCN_calc$tax, Prox.IUCN_df$Species)] <-  table(Calc_df[Calc_df$tax %in% names(Longi_check)[!Longi_check], "tax"])
+#   saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+#   ## limitation of species occurrences to the 180° longitude range for which there is the most data, 86 need to be adjusted
+#   print("Figuring out for which species parts of the data range need to be used, selecting the most data-rich range, and subsequent IUCN criteria computation")
+#   Calc_df2 <- Calc_df[Calc_df$tax %in% names(Longi_check)[Longi_check], ]
+#   for(i in names(Longi_check)[Longi_check]){
+#     num_vec <- rep(NA, length(-180:1))
+#     names(num_vec) <- -180:1
+#     for(k in -180:1){
+#       num_vec[which(k == names(num_vec))] <- 
+#         sum(Calc_df2$ddlon[Calc_df2$tax == i] >= k & Calc_df2$ddlon[Calc_df2$tax == i] < k+180)
+#     }
+#     x <- as.numeric(names(which.max(num_vec)))
+#     Calc_df2$ddlon[Calc_df2$tax == i][
+#       Calc_df2$ddlon[Calc_df2$tax == i] < x |
+#         Calc_df2$ddlon[Calc_df2$tax == i] >= x+180] <- NA
+#   }
+#   Calc_df2 <- na.omit(Calc_df2)
+#   IUCN_calc2 <- IUCN.eval(DATA = Calc_df2, 
+#                           parallel = FALSE, NbeCores = ifelse(numberOfCores>10, 10, numberOfCores),
+#                           protec.areas = ProtectedAreas_shp, ID_shape_PA = "WDPAID"
+#   )
+#   Prox.IUCN_df$Source[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- "ConR - Reduced"
+#   Prox.IUCN_df$Category[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- IUCN_calc2$Category_CriteriaB
+#   Prox.IUCN_df$N[match(IUCN_calc2$tax, Prox.IUCN_df$Species)] <- table(Calc_df$tax)
+#   saveRDS(Prox.IUCN_df, file = file.path(Dir.Data, "Prox_IUCNCriteria.rds"))
+# }else{
+#   print("All IUCN criteria already obtained")
+# }
 
 # SAVING ALL DATA AS ONE OBJECT ============================================
-save(Prox.Climate_ls, ProxClim_ls, Prox.IUCN_df, Prox.Centrality_ls, networks_df, List_ls, traits_df, animals_gowdis, plants_gowdis, animal_means, plant_means,
+save(Prox.Climate_ls, ProxClim_ls, 
+     # Prox.IUCN_df, 
+     Prox.Centrality_ls, networks_df, List_ls, traits_df, animals_gowdis, plants_gowdis, animal_means, plant_means,
      file = file.path(Dir.Data, "AnalysesData.RData"))

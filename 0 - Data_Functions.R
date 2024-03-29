@@ -84,47 +84,93 @@ Clim_Preferences <- function(data = occ_ls, Enviro_ras = Enviro_ras, Outliers = 
   occ_spd <- do.call(rbind, data)
   occ_spd$spec <- rep(names(data), unlist(lapply(data, nrow)))
   spec_vec <- unique(occ_spd$spec)
-  preferences_df <- data.frame(spec = NA,
-                               Temp_median = NA, 
-                               Temp_sd = NA,
-                               Water_median = NA,
-                               Water_sd = NA) 
-  set.seed(42)
-  counter <- 1
-  pb <- txtProgressBar(min = 0, max = length(spec_vec), style = 3)
+  # preferences_df <- data.frame(spec = NA,
+  #                              Temp_median = NA, 
+  #                              Temp_sd = NA,
+  #                              Water_median = NA,
+  #                              Water_sd = NA) 
+  # counter <- 1
+  # pb <- txtProgressBar(min = 0, max = length(spec_vec), style = 3)
   
-  for(spec in spec_vec){
-    
-    occ_iter <- occ_spd[occ_spd$spec == spec, ]
-    if(Outliers){
-      NonOut_pos <- rowSums(as.data.frame(occ_iter)[, c("Out_Enviro", "Out_Centroid")]) == 0 
-      occ_iter <- occ_iter[NonOut_pos,]
-    }
-    extract_df <- na.omit(raster::extract(Enviro_ras, occ_iter))
-    print(paste(spec, nrow(extract_df), sep = " - "))
-    values_df <- data.frame(
-      X1 = NA,
-      X2 = NA
-    )
-    if(nrow(extract_df)<1e4){ #bootstrap only when there are less than 1e4 useable locations - this saves RAM
-      for(i in 1:Boot){
-        rows <- sample(x = 1:nrow(extract_df), size = round(nrow(extract_df)*0.7), replace = TRUE)
-        values_df <- rbind(values_df, extract_df[rows, ])
-      } 
-    }else{
-      values_df <- extract_df
-    }
-    values_df <- na.omit(values_df)
-    
-    preferences_df <- rbind(preferences_df, 
-                            c(spec,
-                              apply(values_df, 2, median)[1], apply(values_df, 2, sd)[1],
-                              apply(values_df, 2, median)[2], apply(values_df, 2, sd)[2])
-    )
-    setTxtProgressBar(pb, counter)
-    counter <- counter + 1
-  }
-  preferences_df <- na.omit(preferences_df)
+  preferences_ls <- pblapply(spec_vec, 
+           cl = numberOfCores, 
+           FUN = function(spec){
+             set.seed(42)
+             occ_iter <- occ_spd[occ_spd$spec == spec, ]
+             NonOut_pos <- as.data.frame(occ_iter)[, c("Out_Centroid")] == 0 
+             occ_iter <- occ_iter[NonOut_pos,]
+             
+             if(Outliers){
+               NonOut_pos <- rowSums(as.data.frame(occ_iter)[, c("Out_Enviro", "Out_Centroid")]) == 0 
+               occ_iter <- occ_iter[NonOut_pos,]
+             }
+             extract_df <- na.omit(raster::extract(Enviro_ras, occ_iter))
+             print(paste(spec, nrow(extract_df), sep = " - "))
+             values_df <- data.frame(
+               X1 = NA,
+               X2 = NA
+             )
+             b1<-boot(extract_df[,1],function(u,i) mean(u[i]),R=Boot)
+             b2<-boot(extract_df[,1],function(u,i) sd(u[i]),R=Boot)
+             tempMean <- mean(boot.ci(b1, type = c("norm"))[["normal"]][1,-1])
+             tempSD <- mean(boot.ci(b2, type = c("norm"))[["normal"]][1,-1])
+             
+             b1<-boot(extract_df[,2],function(u,i) mean(u[i]),R=Boot)
+             b2<-boot(extract_df[,2],function(u,i) sd(u[i]),R=Boot)
+             QMean <- mean(boot.ci(b1, type = c("norm"))[["normal"]][1,-1])
+             QSD <- mean(boot.ci(b2, type = c("norm"))[["normal"]][1,-1])
+             
+             return(c(spec, tempMean, tempSD, QMean, QSD))
+  })
+  preferences_df <- do.call(rbind, preferences_ls)
+  colnames(preferences_df) <- c("spec", "Temp_mean", "Temp_sd", "Water_mean", "Water_sd")
+  
+  # for(spec in spec_vec){
+  #   
+  #   occ_iter <- occ_spd[occ_spd$spec == spec, ]
+  #   NonOut_pos <- as.data.frame(occ_iter)[, c("Out_Centroid")] == 0 
+  #   occ_iter <- occ_iter[NonOut_pos,]
+  #   
+  #   if(Outliers){
+  #     NonOut_pos <- rowSums(as.data.frame(occ_iter)[, c("Out_Enviro", "Out_Centroid")]) == 0 
+  #     occ_iter <- occ_iter[NonOut_pos,]
+  #   }
+  #   extract_df <- na.omit(raster::extract(Enviro_ras, occ_iter))
+  #   print(paste(spec, nrow(extract_df), sep = " - "))
+  #   values_df <- data.frame(
+  #     X1 = NA,
+  #     X2 = NA
+  #   )
+  #   
+  #  # if(nrow(extract_df)<1e4){ #bootstrap only when there are less than 1e4 useable locations - this saves RAM
+  #     # for(i in 1:Boot){
+  #     #   rows <- sample(x = 1:nrow(extract_df), size = round(nrow(extract_df)*0.7), replace = TRUE)
+  #     #   values_df <- rbind(values_df, extract_df[rows, ])
+  #     # }
+  #   # }else{
+  #     # values_df <- extract_df
+  #   # }
+  #   # values_df <- na.omit(values_df)
+  #   b1<-boot(extract_df[,1],function(u,i) mean(u[i]),R=Boot)
+  #   b2<-boot(extract_df[,1],function(u,i) sd(u[i]),R=Boot)
+  #   tempMean <- mean(boot.ci(b1, type = c("norm"))[["normal"]][1,-1])
+  #   tempSD <- mean(boot.ci(b2, type = c("norm"))[["normal"]][1,-1])
+  #   
+  #   b1<-boot(extract_df[,2],function(u,i) mean(u[i]),R=Boot)
+  #   b2<-boot(extract_df[,2],function(u,i) sd(u[i]),R=Boot)
+  #   QMean <- mean(boot.ci(b1, type = c("norm"))[["normal"]][1,-1])
+  #   QSD <- mean(boot.ci(b2, type = c("norm"))[["normal"]][1,-1])
+  #   
+  #   preferences_df <- rbind(preferences_df, 
+  #                           c(spec, tempMean, tempSD, QMean, QSD)
+  #                           # c(spec,
+  #                           #   apply(values_df, 2, mean)[1], apply(values_df, 2, sd)[1],
+  #                           #   apply(values_df, 2, mean)[2], apply(values_df, 2, sd)[2])
+  #   )
+  #   setTxtProgressBar(pb, counter)
+  #   counter <- counter + 1
+  # }
+  preferences_df <- data.frame(na.omit(preferences_df))
   return(preferences_df)
 }
 
@@ -305,7 +351,7 @@ FUN_SimComp <- function(PlantAnim = NULL, # should be set either to a vector of 
                                                                    RewiringProb = Rewiring,
                                                                    forceFULL = TRUE
                              )
-                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 500,
+                             ExtC_Rand <- RandomExtinctions(Network = net, nsim = 200,
                                                             parallel = FALSE, ncores = parallel::detectCores(),
                                                             SimNum = RMNum,
                                                             IS = IS,

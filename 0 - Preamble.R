@@ -29,22 +29,6 @@ rm(list = c("CreateDir", "ExportDirs", "DataDirs"))
 # PACKAGES ================================================================
 try(source("X - PersonalSettings.R")) 
 
-## KrigR ------------------------------------------------------------------
-if("KrigR" %in% rownames(installed.packages()) == FALSE){ # KrigR check
-  Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS="true")
-  devtools::install_github("https://github.com/ErikKusch/KrigR", force = TRUE)
-}
-library(KrigR)
-# CDS API (needed for ERA5-Land downloads)
-if(!exists("API_Key") | !exists("API_User")){ # CS API check: if CDS API credentials have not been specified elsewhere
-  API_User <- readline(prompt = "Please enter your Climate Data Store API user number and hit ENTER.")
-  API_Key <- readline(prompt = "Please enter your Climate Data Store API key number and hit ENTER.")
-} # end of CDS API check
-# NUMBER OF CORES
-if(!exists("numberOfCores")){ # Core check: if number of cores for parallel processing has not been set yet
-  numberOfCores <- as.numeric(readline(prompt = paste("How many cores do you want to allocate to these processes? Your machine has", parallel::detectCores())))
-} # end of Core check
-
 ## CRAN -------------------------------------------------------------------
 # devtools::install_github("ErikKusch/NetworkExtinction", ref = "ErikDevel")
 install.load.package <- function(x) {
@@ -63,8 +47,8 @@ package_vec <- c(
   "data.table", # for data handling
   "rnaturalearth", # for landmask in projection kriging
   "rnaturalearthdata", # for landmask in projection kriging
-  "rredlist", # for IUCN risk retrieval
-  "ConR", # for computation of IUCN risks
+  # "rredlist", # for IUCN risk retrieval
+  # "ConR", # for computation of IUCN risks
   # "CoordinateCleaner", # for additional occurrence cleaning; NOT NEEDED ANYMORE
   "igraph", # for graph operations
   "FD", # for gower distance of trait data
@@ -76,16 +60,33 @@ package_vec <- c(
   "gridExtra", # for table grobs as legends in plots
   "dplyr", # for data cleaning
   "ggpubr", # for t-test comparisons in ggplots
-  # "NetworkExtinction", # for network extinction simulations
   "viridis", # for extra colours in ggplot
   "ggvenn", # for venn diagrams
   "randomForest", # for classification of associations potential
   "brms", # for post-simulation bayesian models with zero-inflated beta
   "tidybayes", # for brms output visualisations
-  "NetworkExtinction" # for network extinction simulations
+  "NetworkExtinction", # for network extinction simulations
+  "boot" # for bootstrapping of niches
 )
 sapply(package_vec, install.load.package)
 
+## KrigR ------------------------------------------------------------------
+if("KrigR" %in% rownames(installed.packages()) == FALSE){ # KrigR check
+  Sys.setenv(R_REMOTES_NO_ERRORS_FROM_WARNINGS="true")
+  devtools::install_github("https://github.com/ErikKusch/KrigR", force = TRUE)
+}
+library(KrigR)
+
+## API Credentials --------------------------------------------------------
+# CDS API (needed for ERA5-Land downloads)
+if(!exists("API_Key") | !exists("API_User")){ # CS API check: if CDS API credentials have not been specified elsewhere
+  API_User <- readline(prompt = "Please enter your Climate Data Store API user number and hit ENTER.")
+  API_Key <- readline(prompt = "Please enter your Climate Data Store API key number and hit ENTER.")
+} # end of CDS API check
+# NUMBER OF CORES
+if(!exists("numberOfCores")){ # Core check: if number of cores for parallel processing has not been set yet
+  numberOfCores <- as.numeric(readline(prompt = paste("How many cores do you want to allocate to these processes? Your machine has", parallel::detectCores())))
+} # end of Core check
 
 if(as.character(options("gbif_user")) == "NULL" ){
   Register <- readline(prompt = "Please enter your GBIF user name")
@@ -102,6 +103,10 @@ if(as.character(options("gbif_user")) == "NULL" ){
   options(gbif_pwd = "Register")
 }
 
+# if(!exists("IUCN_Key")){
+#   IUCN_Key <- readline(prompt = "Please enter your IUCN API key.")
+# }
+
 # FUNCTIONALITY =============================================================
 `%nin%` <- Negate(`%in%`)
 
@@ -114,10 +119,6 @@ hush <- function(code){
 
 Sort.DF <- function(Data = NULL, Column = NULL, decreasing = FALSE){
   Data[order(Data[ , Column], decreasing = decreasing), ]
-}
-
-if(!exists("IUCN_Key")){
-  IUCN_Key <- readline(prompt = "Please enter your IUCN API key.")
 }
 
 substrRight <- function(x, n){
