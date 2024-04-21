@@ -606,40 +606,20 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
   Topos_vec <- c("n_species", "n_plants", "n_animals", "n_links", "Nestedness", "Modularity")
   fs <- list.files(path = Dir.Exports, pattern = paste0(RunName, "SimulationTopo"))
   fs <- fs[grep(pattern = paste(unlist(CutOffs), collapse = "-"), fs)]
-  # IS_vec <- as.numeric(unlist(
-  #   lapply(
-  #     regmatches(fs, gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs)), 
-  #     "[[", 1
-  #   )
-  # ))
-  # Rew_vec <- as.numeric(unlist(
-  #   lapply(
-  #     regmatches(fs, gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs)), 
-  #     "[[", 2
-  #   )
-  # ))
-  # fs <- fs[order(IS_vec)]
   pb <- txtProgressBar(min = 0, max = length(fs), style = 3)
   for(i in 1:length(fs)){
     ## data extraction
-    # Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
-    # EffSD2_df <- loadRData(file.path(Dir.Exports, fs[i]))$EffSD_df
+    Eff2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Eff_df
+    EffSD2_df <- loadRData(file.path(Dir.Exports, fs[i]))$EffSD_df
     Topo2_df <- loadRData(file.path(Dir.Exports, fs[i]))$Topo_df
-    IS_Iter <- as.numeric(unlist(lapply(
+    EffSD2_df$IS <- Eff2_df$IS <- Topo2_df$IS <- as.numeric(unlist(lapply(
       regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])), 
-      "[[", 1
-    )))
-    add <- ifelse(IS_Iter == 585, 1, 0)
-    # EffSD2_df$IS <- Eff2_df$IS <- 
-    Topo2_df$IS <- as.numeric(unlist(lapply(
-      regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*", fs[i])),
-      "[[", 1+add
-    )))
-    # EffSD2_df$RE <- Eff2_df$RE <- 
-    Topo2_df$RE <- as.numeric(unlist(
+      "[[", 2
+    ))) # pick the second number as the first indicates scenario through RUnName
+    EffSD2_df$RE <- Eff2_df$RE <- Topo2_df$RE <- as.numeric(unlist(
       lapply(
         regmatches(fs[i], gregexpr("[[:digit:]]+\\.*[[:digit:]]*",fs[i])),
-        "[[", 2+add
+        "[[", 3
       )
     ))
     
@@ -655,7 +635,7 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
         IS = PlotCombin_df$IS,
         RE = PlotCombin_df$RE,
         Topology = x,
-        # Pre = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[1]],
+        Pre = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[1]],
         Post = PlotCombin_df[,grep(x,colnames(PlotCombin_df))[2]],
         AbsChange = Change_vec
       )
@@ -664,13 +644,13 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
     })
     Change2_df <- do.call(rbind, Rel_ls)
     if(i == 1){
-      # Eff_df <- Eff2_df
-      # EffSD_df <- EffSD2_df
+      Eff_df <- Eff2_df
+      EffSD_df <- EffSD2_df
       Topo_df <- Topo2_df
       Change_df <- Change2_df
     }else{
-      # Eff_df <- rbind(Eff_df, Eff2_df)
-      # EffSD_df <- rbind(EffSD_df, EffSD2_df)
+      Eff_df <- rbind(Eff_df, Eff2_df)
+      EffSD_df <- rbind(EffSD_df, EffSD2_df)
       Topo_df <- rbind(Topo_df, Topo2_df)
       Change_df <- rbind(Change_df, Change2_df)
     }
