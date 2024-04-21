@@ -267,9 +267,8 @@ if(
 
   ## Topology Loading and Storing as one object -------------------------
   ## while loading in the topologies, we also compute absolute and relative change of each simulation to the pre-extinction network topologies
-  stop("fix loadTopo function")
-  PlotTopoAll_ls <- loadTopo(RunName = "SSP245", CutOffs = CutOffs, Pre = PreExt_df)
-  saveObj(PlotTopoAll_ls, file.name = file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
+  PlotTopoSSP245_ls <- loadTopo(RunName = "SSP245", CutOffs = CutOffs, Pre = PreExt_df)
+  saveObj(PlotTopoSSP245_ls, file.name = file.path(Dir.Exports, "PlotTopoSSP245_ls.RData"))
   
   PlotTopoSSP585_ls <- loadTopo(RunName = "SSP585", CutOffs = CutOffs, Pre = PreExt_df)
   saveObj(PlotTopoSSP585_ls, file.name = file.path(Dir.Exports, "PlotTopoSSP585_ls.RData"))
