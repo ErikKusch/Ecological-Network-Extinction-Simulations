@@ -658,7 +658,7 @@ loadTopo <- function(RunName = "ALL", CutOffs, Pre){
   }
   # colnames(Eff_df) <- gsub(pattern = ".x", replacement = "", colnames(Eff_df))
   return(list(Topology = Topo_df, 
-              EffectSize = NULL, #Eff_df, 
-              RandomSD = NULL, #EffSD_df, 
+              EffectSize = Eff_df, 
+              RandomSD = EffSD_df, 
               Change = Change_df))
 }

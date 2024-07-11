@@ -66,7 +66,8 @@ package_vec <- c(
   "brms", # for post-simulation bayesian models with zero-inflated beta
   "tidybayes", # for brms output visualisations
   "NetworkExtinction", # for network extinction simulations
-  "boot" # for bootstrapping of niches
+  "boot", # for bootstrapping of niches
+  "iterators"
 )
 sapply(package_vec, install.load.package)
 

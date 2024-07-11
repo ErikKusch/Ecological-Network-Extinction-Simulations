@@ -212,7 +212,7 @@ message("### EXTINCTION SIMULATION(S) ###")
 
 if(
   all(unlist(
-  lapply(list(file.path(Dir.Exports, "PlotTopoAll_ls.RData"),
+  lapply(list(file.path(Dir.Exports, "PlotTopoSSP245_ls.RData"),
               file.path(Dir.Exports, "PlotTopoSSP585_ls.RData")
               # ,
               # file.path(Dir.Exports, "PlotTopoPlants_ls.RData"),
@@ -224,7 +224,7 @@ if(
 ){
   # print("Simulations and topologies already calculated - Loading 4 files from hard drive")
   print("Simulations and topologies already calculated - Loading 2 files from hard drive")
-  PlotTopoAll_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAll_ls.RData"))
+  PlotTopoSSP245_ls <- loadObj(file.path(Dir.Exports, "PlotTopoSSP245_ls.RData"))
   PlotTopoSSP585_ls <- loadObj(file.path(Dir.Exports, "PlotTopoSSP585_ls.RData"))
   # PlotTopoPlants_ls <- loadObj(file.path(Dir.Exports, "PlotTopoPlants_ls.RData"))
   # PlotTopoAnimals_ls <- loadObj(file.path(Dir.Exports, "PlotTopoAnimals_ls.RData"))
