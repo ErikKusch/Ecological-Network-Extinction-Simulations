@@ -232,8 +232,9 @@ print("########## Resilience Landscape Matrices")
 lapply(PlotTopo_ls, FUN = function(SSP_iter){
   Change_df <- SSP_iter$Change
   Change_df <- Change_df[Change_df$Topology %in% TopoPlots, ]
-  EffectSize_df <- SSP_iter$EffectSize
-  RandomSD_df <- SSP_iter$RandomSD
+  ## also remove networks for which no species werre removed here:
+  EffectSize_df <- SSP_iter$EffectSize[SSP_iter$EffectSize$netID %nin% unique(SSP_iter$Topology$netID[SSP_iter$Topology$Removed == 0]),]
+  RandomSD_df <- SSP_iter$RandomSD[SSP_iter$RandomSD$netID %nin% unique(SSP_iter$Topology$netID[SSP_iter$Topology$Removed == 0]),]
   
   ## landscapes ----
   ## calc mean and sd per location and driver
@@ -297,6 +298,7 @@ lapply(PlotTopo_ls, FUN = function(SSP_iter){
     colnames(Comgrid) <- c("RE", "IS", "Proxy")
     
     contempttest <- apply(Comgrid, 1, FUN = function(rowiter){
+      print(rowiter)
       REiter <- rowiter[1]
       ISiter <- rowiter[2]
       Proxyiter <- rowiter[3]
@@ -359,10 +361,77 @@ lapply(PlotTopo_ls, FUN = function(SSP_iter){
                               paste0("FIG_ContempComp_SSP", unique(Change_df$SSP), ".png")),
          width = 34/1.2, height = 28/1.2, units = "cm")
   
-  
-  
   ## effect sizes ----
+  ## reformat to effect sizes
+  Plot_df <- EffectSize_df[, TopoPlots] / RandomSD_df[, TopoPlots]
+  Plot_df$netID <- EffectSize_df$netID
+  Plot_df$RE <- EffectSize_df$RE
+  Plot_df$IS <- EffectSize_df$IS
+  Plot_df$Proxy <- EffectSize_df$Proxy
+
+  ## reshape data for aggregation and formatting
+  Plot_df <- stats::reshape(data = Plot_df,
+                            times = colnames(Plot_df)[1:length(TopoPlots)],
+                            varying = list(colnames(Plot_df)[1:length(TopoPlots)]),
+                            timevar = "Topology",
+                            direction = "long")
+  colnames(Plot_df)[ncol(Plot_df)-1] <- "EffectSize"
+  Plot_df <- Plot_df[which(abs(Plot_df$EffectSize) != Inf), ]
+  Plot_df <- Plot_df[which(!is.na(Plot_df$EffectSize)), ]
+
+  ## Plot Creation
+  Mean_df <- aggregate(x = Plot_df, EffectSize ~ Topology + IS + RE + Proxy, FUN = mean)
+  SD_df <- aggregate(x = Plot_df, EffectSize ~ Topology + IS + RE + Proxy, FUN = sd)
   
+  topo_ls <- lapply(unique(Mean_df$Topology), FUN = function(topoiter){
+    prx_ls <- lapply(unique(Mean_df$Proxy), FUN = function(prox_iter){
+      Mean_gg <- ggplot(Mean_df[Mean_df$Proxy == prox_iter & 
+                                  Mean_df$Topology == topoiter, ], 
+                        aes(x = RE, y = IS)) +
+        geom_tile(aes(fill = EffectSize)) +
+        coord_fixed() + 
+        facet_grid(Proxy~factor(Topology, levels = TopoPlots)) + 
+        theme_bw() + 
+        xlab("") + 
+        ylab("") + 
+        guides(fill = guide_colourbar(barwidth = 23.5,
+                                      barheight = 2,
+                                      # title = "Proportional Network Metric Change",
+                                      title = "",
+                                      direction = "horizontal"
+        )) + 
+        scale_fill_gradient2(low = "darkred", high = "forestgreen") + 
+        theme(plot.margin = unit(c(0,0,0,0), "lines"), legend.position = "bottom")
+      
+      SD_gg <- ggplot(SD_df[SD_df$Proxy == prox_iter & 
+                              SD_df$Topology == topoiter, ], 
+                      aes(x = RE, y = IS)) +
+        geom_tile(aes(fill = EffectSize)) +
+        coord_fixed() + 
+        facet_grid(Proxy~factor(Topology, levels = TopoPlots)) + 
+        theme_bw() + 
+        xlab("") + 
+        ylab("") + 
+        guides(fill = guide_colourbar(barwidth = 23.5,
+                                      barheight = 2,
+                                      # title = "Proportional Network Metric Change",
+                                      title = "",
+                                      direction = "horizontal"
+        )) + 
+        scale_fill_viridis("SD", option = "D") + 
+        theme(plot.margin = unit(c(0,0,0,0), "lines"), legend.position = "bottom")
+      
+      cowplot::plot_grid(Mean_gg, SD_gg, ncol = 2)
+    })
+    
+    Eff_gg <- cowplot::plot_grid(plotlist = prx_ls, ncol = 1)
+    MatComb_plot <- grid.arrange(arrangeGrob(Eff_gg, left = y.grob, top = x.grob))
+    
+    ggsave(MatComb_plot, 
+           filename = file.path(Dir.Exports, 
+                                paste0("FIG_EffectSizes_SSP", unique(Change_df$SSP), "_", topoiter, ".png")),
+           width = 34/1.2, height = 60/1.2, units = "cm")
+  })
 })
 
 # NETWORK DATA LOCATIONS ---------------------------------------------------
@@ -379,106 +448,6 @@ ggplot(data = world) +
   theme(plot.title = element_text(hjust = 0.5))
 
 ggsave(filename = file.path(Dir.Exports, "FIGS4_NetworksCountries.png"), width = 16/2, height = 9/2, units = "cm", scale = 3, dpi = 1e3)
-
-# EFFECT SIZES -------------------------------------------------------------
-# print("########## FIGURE S10")
-# RunName = "ALL"
-# # for(RunName in names(PlotTopo_ls)){
-# ## extract necessary data
-# # EffectSize_df <- PlotTopoAll_ls$EffectSize
-# # RandomSD_df <- PlotTopoAll_ls$RandomSD
-# EffectSize_df <- PlotTopo_ls[[RunName]]$EffectSize
-# RandomSD_df <- PlotTopo_ls[[RunName]]$RandomSD
-# 
-# ## reformat to effect sizes
-# # Sig_df <- !(abs(EffectSize_df[,TopoPlots]) > RandomSD_df[,TopoPlots])
-# # Plot_df <- EffectSize_df[, TopoPlots]
-# # Plot_df[Sig_df] <- NA
-# Plot_df <- EffectSize_df[, TopoPlots] / RandomSD_df[, TopoPlots]
-# Plot_df$netID <- EffectSize_df$netID
-# Plot_df$RE <- EffectSize_df$RE
-# Plot_df$IS <- EffectSize_df$IS
-# Plot_df$Pry <- EffectSize_df$Pry
-# 
-# # ## make effectsizes relative to base networks
-# # Plot_df <- Plot_df[ , c("netID", TopoPlots, "Pry", "IS", "RE")]
-# # merged_df <- base::merge(Plot_df, PreExt_df[, c("netID", TopoPlots)], by = "netID")
-# # Rel_effSizes <- merged_df[ , 2:(length(TopoPlots)+1)] /  # predictions
-# #   merged_df[ , (1+2*length(TopoPlots)):ncol(merged_df)] # pre-extinctions
-# # colnames(Rel_effSizes) <- TopoPlots
-# # Rel_effSizes$netID <- Plot_df$netID
-# # Rel_effSizes$RE <- Plot_df$RE
-# # Rel_effSizes$IS <- Plot_df$IS
-# # Rel_effSizes$Pry <- Plot_df$Pry
-# # Plot_df <- Rel_effSizes
-# 
-# ## reshape data for aggregation and formatting
-# Plot_df <- stats::reshape(data = Plot_df, 
-#                           times = colnames(Plot_df)[1:length(TopoPlots)],
-#                           varying = list(colnames(Plot_df)[1:length(TopoPlots)]),
-#                           timevar = "Topology",
-#                           direction = "long")
-# colnames(Plot_df)[ncol(Plot_df)-1] <- "EffectSize"
-# Plot_df <- Plot_df[which(abs(Plot_df$EffectSize) != Inf), ]
-# Plot_df <- Plot_df[which(!is.na(Plot_df$EffectSize)), ]
-# 
-# # ## removal of effectsizes where there was no deletion sequence
-# # ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 1, Rewiring = 1, CutOffs = CutOffs)
-# # Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed"), length)) == 0)) &
-# #           Plot_df$Pry == "Climate", "EffectSize"] <- NA
-# # Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed"), length)) == 0)) &
-# #           Plot_df$Pry == "IUCN", "EffectSize"] <- NA
-# # Plot_df[Plot_df$netID %in% names(which(unlist(lapply(lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed"), length)) == 0)) &
-# #           Plot_df$Pry == "Strength", "EffectSize"] <- NA
-# # Plot_df <- na.omit(Plot_df)         
-# # Plot_df <- Plot_df[, -ncol(Plot_df)]
-# 
-# ## Plot Creation
-# ES_ls <- as.list(rep(NA, length(unique(Plot_df$Pry))))
-# names(ES_ls) <- unique(Plot_df$Pry)
-# for(proxy_iter in unique(Plot_df$Pry)){
-#   Topo_ls <- as.list(rep(NA, length(TopoPlots)))
-#   names(Topo_ls) <- TopoPlots
-#   for(topo_iter in TopoPlots){
-#     iter_df <- Plot_df[Plot_df$Topology == topo_iter &
-#                          Plot_df$Pry == proxy_iter, ]
-#     mean_df <- aggregate(EffectSize ~ Pry+Topology+IS+RE, FUN = mean, data = iter_df)
-#     Topo_ls[[topo_iter]] <- ggplot(mean_df, aes(x = RE, y = IS)) +
-#       geom_tile(aes(fill = EffectSize)) +
-#       coord_fixed() +
-#       facet_wrap(~Pry+Topology) +
-#       scale_fill_gradient2(high = "darkgreen", low = "darkred") +
-#       theme_bw() +  xlab("") + ylab("") +
-#       guides(fill = guide_colourbar(barwidth = 2, barheight = 20, title = ""))
-#   }
-#   ES_ls[[proxy_iter]] <- Topo_ls
-#   
-#   ## plotting and saving
-#   y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence",
-#                      gp=gpar(fontface="bold", col="black", fontsize=25), rot=90)
-#   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
-#                      gp=gpar(fontface="bold", col="black", fontsize=25))
-#   MatPred_plot <- plot_grid(plotlist = ES_ls[[proxy_iter]], nrow = 1)
-#   ES_ls[[proxy_iter]] <- MatPred_plot
-# }
-# 
-# ggsave(ES_ls$Climate,
-#        width = 34/1.2, height = 30/1.2, units = "cm",
-#        filename = file.path(Dir.Exports, paste0("FIGS10A_EffectSizes-", RunName, ".png"))
-# )
-# 
-# ggsave(
-#   plot_grid(plotlist = ES_ls[c("IUCN", "Strength")], nrow = 1), 
-#   filename = file.path(Dir.Exports, paste0("FIGS10B+C_EffectSizes-", RunName, ".png")), 
-#   width = (34/1.2)*2, height = 30/1.2, units = "cm")
-# 
-# # EffSizePlots_ls <- Proxy_ls
-# 
-# ## as exptected, the below produces an error. Signficiance how?!
-# # lm_df <- iter_df[iter_df$IS == 0.5 & iter_df$RE == 0.5, ]
-# # lm_df
-# # lme4::lmer(EffectSize ~ 1 + (1|netID), data = lm_df)
-# # }
 
 # PRIMARY PROXY COMPARISONS ------------------------------------------------
 print("########## PRIMARY PROXY MODELS")
@@ -590,307 +559,3 @@ for(model_iter in TopoPlots){
     width = 13*2.4, height = 6.5*2.4, units = "cm")
   
 }
-# Plotting_df <- Plotting_df[-1,]
-# Plotting_df$Proxy <- factor(Plotting_df$Proxy, 
-#                                   levels = c("Centrality", "SSP585", "SSP245", "IUCN", "Interaction", "RPT", "LLS"))
-# Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
-# names(Plot_ls) <- unique(Plotting_df$Parameter)
-# for(i in names(Plot_ls)){
-#   Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Proxy != "IUCN" & 
-#                                        Plotting_df$Proxy != "Centrality" & 
-#                                        Plotting_df$Parameter == i, ], 
-#                          aes(x = Posterior, y = Proxy)
-#   ) +
-#     stat_halfeye() +
-#     theme_bw() +
-#     facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
-#     geom_vline(xintercept = 0, col = "black") + 
-#     theme(text = element_text(size = 20))
-#   # labs(title = model_iter) +
-#   # theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
-# }
-# 
-# ggsave(
-#   cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
-#   filename = file.path(Dir.Exports, "FIG4_ProxyComparison-ALL.png"), 
-#   width = 30/0.6, height = 30/1.2, units = "cm")
-
-# # FIGURE 5 - Cascade Comparisons
-# print("########## FIGURE 5")
-# model_df <- do.call(rbind, lapply(PlotTopo_ls, FUN = function(x){x[["Change"]]}))
-# model_df <- model_df[model_df$Proxy == "Climate", ]
-# model_df$Casc <- factor(model_df$Casc)
-# model_df$netID <- factor(model_df$netID)
-# 
-# plot_ls <- as.list(rep(NA, length(TopoPlots)))
-# names(plot_ls) <- TopoPlots
-# 
-# Plotting_df <- data.frame(Cascade = NA, Posterior = NA, id = NA, Parameter = NA, NetworkMetric = NA)
-# 
-# for(model_iter in TopoPlots){
-#   print(model_iter)
-#   brms_fam <- ifelse(model_iter %in% c("Modularity", "Nestedness"), 
-#                      "normal", "zero_one_inflated_beta")
-#   iter_df <- model_df[model_df$Topology == model_iter, ]
-#   # iter_df <- iter_df[which(iter_df$RelChange >= 0 & iter_df$RelChange <= 1),] # necessary for nestedness models
-#   if(file.exists(file.path(Dir.Exports, paste0("FIG5_MODEL_", model_iter, ".RData")))){
-#     load(file.path(Dir.Exports, paste0("FIG5_MODEL_", model_iter, ".RData")))
-#   }else{
-#     Casc_brms <- brm(RelChange ~ 0+Casc+IS*RE,
-#                      data = iter_df,
-#                      family = brms_fam,
-#                      chains = 4, cores = 4, thin = 10, iter = 1e4)
-#     save(Casc_brms, file = file.path(Dir.Exports, paste0("FIG5_MODEL_", model_iter, ".RData")))
-#   }
-#   
-#   Posterior_df <- posterior_samples(Casc_brms)
-#   
-#   CascIntercept_df <- inv_logit_scaled(Posterior_df[, 1:3])
-#   CascIntercept_df <- stats::reshape(CascIntercept_df,
-#                                      direction = "long",
-#                                      varying = colnames(CascIntercept_df),
-#                                      times = colnames(CascIntercept_df),
-#                                      timevar = "Cascade",
-#                                      v.names = "Posterior",
-#   )
-#   CascIntercept_df$Parameter = "Intercept"
-#   CascIntercept_df$Cascade <- gsub(CascIntercept_df$Cascade,
-#                                    pattern = "b_CascALL", replacement = "Bidirectional")
-#   CascIntercept_df$Cascade <- gsub(CascIntercept_df$Cascade,
-#                                    pattern = "b_CascPlants", replacement = "Bottom-Up")
-#   CascIntercept_df$Cascade <- gsub(CascIntercept_df$Cascade,
-#                                    pattern = "b_CascAnimals", replacement = "Top-Down")
-#   CascIntercept_df$NetworkMetric <- model_iter
-#   
-#   ISRE_df <- inv_logit_scaled(Posterior_df[, c("b_IS", "b_RE", "b_IS:RE")])
-#   ISRE_df <- stats::reshape(ISRE_df,
-#                             direction = "long",
-#                             varying = colnames(ISRE_df),
-#                             times = colnames(ISRE_df),
-#                             timevar = "Cascade",
-#                             v.names = "Posterior",
-#   )
-#   ISRE_df$Parameter = "Resilience"
-#   ISRE_df$Cascade <- gsub(ISRE_df$Cascade,
-#                         pattern = "b_IS", replacement = "LLS")
-#   ISRE_df$Cascade <- gsub(ISRE_df$Cascade,
-#                         pattern = "b_RE", replacement = "RPT")
-#   ISRE_df$Cascade <- gsub(ISRE_df$Cascade,
-#                         pattern = "LLS:RE", replacement = "Interaction")
-#   ISRE_df$NetworkMetric <- model_iter
-#   
-#   Plotting_df <- rbind(Plotting_df, CascIntercept_df, ISRE_df)
-#   # plot_ls[[model_iter]] <- ggplot(CascIntercept_df, aes(x = Posterior, y = Cascade)) +
-#   #   stat_halfeye() +
-#   #   theme_bw() + 
-#   #   # geom_vline(xintercept = 0, col = "red") + 
-#   #   labs(title = model_iter) + 
-#   #   theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
-#   # 
-#   # if(model_iter %in% c("n_links", "Nestedness")){
-#   #   plot_ls[[model_iter]] <- plot_ls[[model_iter]] + labs(y = NULL)
-#   # }
-# }
-# 
-# Plotting_df <- Plotting_df[-1,]
-# Plotting_df$Cascade <- factor(Plotting_df$Cascade, 
-#                             levels = c("Bidirectional", "Bottom-Up", "Top-Down", "Interaction", "RPT", "LLS"))
-# Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
-# names(Plot_ls) <- unique(Plotting_df$Parameter)
-# for(i in names(Plot_ls)){
-#   Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Parameter == i, ], 
-#                          aes(x = Posterior, y = Cascade)
-#   ) +
-#     stat_halfeye() +
-#     theme_bw() +
-#     facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
-#     geom_vline(xintercept = 0, col = "black") + 
-#     theme(text = element_text(size = 20))
-#   # labs(title = model_iter) +
-#   # theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
-# }
-# 
-# ggsave(
-#   cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
-#   filename = file.path(Dir.Exports, "FIG5_CascComparison-Climate.png"), 
-#   width = 30/0.6, height = 34/1.2, units = "cm")
-# 
-# 
-# # FIGURE S11 & S12 - Cascade Comparison Matrices
-# print("########## FIGURE S11 & S12")
-# RunNames <- c("Plants", "Animals")
-# FigNames <- c("FigS11", "FigS12")
-# for(RunIter in 1:2){
-#   RunName <- RunNames[RunIter]
-#   FigName <- FigNames[RunIter]
-#   ### Baseline ALL Changes
-#   Change_df <- PlotTopo_ls[["ALL"]]$Change
-#   Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% 
-#                            c("Climate", 
-#                              # "IUCN", 
-#                              "Strength"), ]
-#   base_plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = Change_df)
-#   base_sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = Change_df)
-#   
-#   ### Relative Changes
-#   Change_df <- PlotTopo_ls[[RunName]]$Change
-#   Change_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% 
-#                            c("Climate"
-#                              #, 
-#                              # "IUCN", 
-#                              #"Strength"
-#                              ), ]
-#   test_plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = Change_df)
-#   test_sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = Change_df)
-#   
-#   ### Changes compared to baseline
-#   base_combs <- with(base_plot_df, paste(Proxy, Topology, IS, RE, sep="-"))
-#   test_combs <- with(test_plot_df, paste(Proxy, Topology, IS, RE, sep="-"))
-#   
-#   plot_df <- base_plot_df[base_combs %in% test_combs, ]
-#   plot_df$RelChange <- base_plot_df[base_combs %in% test_combs, 5] - test_plot_df[test_combs %in% base_combs, 5]
-#   
-#   sd_df <- base_sd_df[base_combs %in% test_combs, ]
-#   sd_df$RelChange <- base_sd_df[base_combs %in% test_combs, 5] - test_sd_df[test_combs %in% base_combs, 5]
-#   
-#   # iterate my Topology, then fuse plots
-#   matplot_ls <- list(Pred = as.list(rep(NA, length(TopoPlots))),
-#                      SD = as.list(rep(NA, length(TopoPlots))))
-#   
-#   
-#   for(TopoIter in 1:length(TopoPlots)){
-#     plot_df2 <- plot_df[plot_df$Topology == TopoPlots[TopoIter], ]
-#     sd_df2 <- sd_df[sd_df$Topology == TopoPlots[TopoIter], ]
-#     
-#     matplot_ls$Pred[[TopoIter]] <- ggplot(plot_df2, aes(x = RE, y = IS)) +
-#       geom_tile(aes(fill = RelChange)) +
-#       coord_fixed() +
-#       facet_wrap(~Proxy, ncol = 3) +
-#       theme_bw() +
-#       # xlab("Probability of Rewiring Required to Realise Novel Links") +
-#       # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
-#       xlab("") +
-#       ylab("") +
-#       guides(fill = guide_colourbar(barwidth = 1.5,
-#                                     barheight = 12,
-#                                     title = "", #Proportional Network \n Metric Change
-#                                     title.position = "bottom",
-#                                     # direction = "horizontal",
-#                                     legend.location = "bottom")) +
-#       scale_fill_gradient2("SD", low = "#D55E00", high = "#009E73") + 
-#       # theme(legend.position = "bottom") + 
-#       ggtitle(TopoPlots[TopoIter]) 
-#     # +
-#     #   theme(plot.margin = unit(c(0,0,0,0), "lines"))
-#     
-#     matplot_ls$SD[[TopoIter]] <- ggplot(sd_df2, aes(x = RE, y = IS)) +
-#       geom_tile(aes(fill = RelChange)) +
-#       coord_fixed() +
-#       facet_wrap(~Proxy, ncol = 3) +
-#       theme_bw() +
-#       # xlab("Probability of Rewiring Required to Realise Novel Links") +
-#       # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
-#       xlab("") +
-#       ylab("") +
-#       guides(fill = guide_colourbar(barwidth = 1.5,
-#                                     barheight = 12,
-#                                     title = "", #Proportional Network \n Metric Change
-#                                     title.position = "bottom",
-#                                     # direction = "horizontal",
-#                                     legend.location = "bottom")) +
-#       scale_fill_gradient2("SD", low = "#D55E00", high = "#009E73") + 
-#       # theme(legend.position = "bottom") + 
-#       ggtitle(TopoPlots[TopoIter]) 
-#     # +
-#     #   theme(plot.margin = unit(c(0,0,0,0), "lines"))
-#   }
-#   y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence",
-#                      gp=gpar(fontface="bold", col="black", fontsize=12), rot=90)
-#   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
-#                      gp=gpar(fontface="bold", col="black", fontsize=12))
-#   
-#   MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 2)
-#   MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, bottom = x.grob))
-#   ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(FigName, "_MatrixChange", RunName, "-ComparedtoALL.png")), width = 22/1.2, height = 22/1.2, units = "cm")
-#   # MatSD_plot <- plot_grid(plotlist = matplot_ls$SD, nrow = 1)
-#   # MatSD_plot <- grid.arrange(arrangeGrob(MatSD_plot, left = y.grob, top = x.grob))
-#   # ggsave(MatSD_plot, filename = file.path(Dir.Exports, paste0("PLOT_MatrixChange_SD", RunName, "-ComparedtoALL.png")), width = 44/1.2, height = 34/1.2, units = "cm")
-# }
-# 
-# 
-# # FIGURE S13 - Cascade Species Group Vulnerability
-# ## animals
-# Removal_df <- PlotTopo_ls[["Animals"]]$Topology
-# Removal_df <- Removal_df[Removal_df$Simulation == "Prediction" &
-#                            Removal_df$IS == 0 & Removal_df$RE == 0, c("netID", "Proxy", "Removed")]
-# 
-# Change_df <- PlotTopo_ls[["Animals"]]$Change
-# Change_df <- Change_df[Change_df$Topology == "n_plants", ]
-# 
-# merged_df <- merge.data.frame(x = Change_df, y = Removal_df, by = c("netID", "Proxy"))
-# 
-# ## plants
-# Removal_df <- PlotTopo_ls[["Plants"]]$Topology
-# Removal_df <- Removal_df[Removal_df$Simulation == "Prediction" &
-#                            Removal_df$IS == 0 & Removal_df$RE == 0, c("netID", "Proxy", "Removed")]
-# Change_df <- PlotTopo_ls[["Plants"]]$Change
-# Change_df <- Change_df[Change_df$Topology == "n_animals", ]
-# 
-# merged_df2 <- merge.data.frame(x = Change_df, y = Removal_df, by = c("netID", "Proxy"))
-# 
-# ## plotting
-# plot_df <- rbind(merged_df, merged_df2)
-# plot_df$Value <- plot_df$RelChange/plot_df$Removed
-# plot_df$Value[which(is.nan(plot_df$Value))] <- NA
-# 
-# 
-# sd_df <- aggregate(Value ~ Proxy+Casc+IS+RE, FUN = sd, data = plot_df)
-# plot_df <- aggregate(Value ~ Proxy+Casc+IS+RE, FUN = mean, data = plot_df)
-# 
-# plot_df <- plot_df[plot_df$Proxy != "IUCN" & plot_df$Proxy != "Strength", ]
-# sd_df <- sd_df[sd_df$Proxy != "IUCN" & sd_df$Proxy != "Strength", ]
-# 
-# Pred_gplot <- ggplot(plot_df, aes(x = RE, y = IS)) +
-#   geom_tile(aes(fill = Value)) +
-#   coord_fixed() +
-#   facet_wrap(~Proxy+Casc, ncol = 2) +
-#   theme_bw() +
-#   # xlab("Probability of Rewiring Required to Realise Novel Links") +
-#   # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
-#   xlab("") +
-#   ylab("") +
-#   guides(fill = guide_colourbar(barwidth = 15,
-#                                 barheight = 1.5,
-#                                 title = "Proportional Network Metric Change",
-#                                 title.position = "bottom",
-#                                 # direction = "horizontal",
-#                                 legend.location = "bottom")) +
-#   scale_fill_viridis("Mean", option = "B", direction = -1) + 
-#   theme(legend.position = "bottom")
-# 
-# SD_gplot <- ggplot(sd_df, aes(x = RE, y = IS)) +
-#   geom_tile(aes(fill = Value)) +
-#   coord_fixed() +
-#   facet_wrap(~Proxy+Casc, ncol = 2) +
-#   theme_bw() +
-#   # xlab("Probability of Rewiring Required to Realise Novel Links") +
-#   # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
-#   xlab("") +
-#   ylab("") +
-#   guides(fill = guide_colourbar(barwidth = 15,
-#                                 barheight = 1.5,
-#                                 title = "Proportional Network Metric Change",
-#                                 title.position = "bottom",
-#                                 # direction = "horizontal",
-#                                 legend.location = "bottom")) +
-#   scale_fill_viridis("SD", option = "D") + 
-#   theme(legend.position = "bottom")
-# 
-# y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence",
-#                    gp=gpar(fontface="bold", col="black", fontsize=15), rot=90)
-# x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links",
-#                    gp=gpar(fontface="bold", col="black", fontsize=15))
-# 
-# Export_plot <- grid.arrange(arrangeGrob(plot_grid(Pred_gplot, SD_gplot, nrow = 1), left = y.grob, top = x.grob))
-# ggsave(Export_plot, filename = file.path(Dir.Exports, paste0("FIGS13", "_LossOfSpecReltoOtherGroupPrimLoss.png")), width = 43/1.2, height = 28/1.2, units = "cm")
-
