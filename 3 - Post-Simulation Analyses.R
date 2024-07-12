@@ -42,14 +42,13 @@ PlotTopo_ls <- list(SSP245 = PlotTopoSSP245_ls,
 PlotTopo_ls$SSP245$Change$SSP <- 245
 PlotTopo_ls$SSP585$Change$SSP <- 585
 
-## Data Limiting -----------------------------------------------------------
+# CONCEPT ARIAS-ARONE One-Network Resilience Landscape ---------------------
+print("########## Arias-Arone (Single-Network Panels)")
 AnalysisData_ls <- AnalysisData_ls[28] # loading data for single network
 RM_spec <- FUN_SimComp(PlantAnim = NULL, RunName = "FIG2", CutOffs = CutOffs, 
                        PotPartners = RewClass_ls, Traits = meta_df, 
                        IS = 1, Rewiring = 1, WHICH = c("SSP245"))$`Arias-Arone 2016`$Climate$Removed # removed species in target network
 
-# CONCEPT ARIAS-ARONE One-Network Resilience Landscape ---------------------
-print("########## Arias-Arone (Single-Network Panels)")
 ### Matrix Visualisation ----
 Change_df <- PlotTopo_ls$SSP245$Change
 Change_df <- Change_df[Change_df$Topology %in% "n_species" & 
@@ -565,7 +564,7 @@ ggsave(filename = file.path(Dir.Exports, "FIGS4_NetworksCountries.png"), width =
 # # }
 
 # PRIMARY PROXY COMPARISONS ------------------------------------------------
-print("########## FIGURE 4")
+print("########## PRIMARY PROXY MODELS")
 model_df <- do.call(rbind, lapply(PlotTopo_ls, FUN = function(x){x[["Change"]]}))
 model_df$Proxy <- factor(model_df$Proxy)
 model_df$SSP <- factor(model_df$SSP)
@@ -573,7 +572,8 @@ model_df$netID <- factor(model_df$netID)
 
 # plot_ls <- as.list(rep(NA, length(TopoPlots)))
 # names(plot_ls) <- TopoPlots
-Plotting_df <- data.frame(Proxy = NA, Posterior = NA, id = NA, Parameter = NA, NetworkMetric = NA)
+Plotting_df <- data.frame(Proxy = NA, Posterior = NA, id = NA, Parameter = NA, 
+                          SSP = 585, Driver = NA, NetworkMetric = NA, PlotYLabels = NA)
 
 for(model_iter in TopoPlots){
   print(model_iter)
@@ -582,8 +582,8 @@ for(model_iter in TopoPlots){
   iter_df <- model_df[model_df$Topology == model_iter, ]
   iter_df$PrimProx <- paste(iter_df$SSP, iter_df$Proxy, sep = "-")
   
-  if(file.exists(file.path(Dir.Exports, paste0("FIG4_MODEL_", model_iter, ".RData")))){
-    load(file.path(Dir.Exports, paste0("FIG4_MODEL_", model_iter, ".RData")))
+  if(file.exists(file.path(Dir.Exports, paste0("PROXCOMP_", model_iter, ".RData")))){
+    load(file.path(Dir.Exports, paste0("PROXCOMP_", model_iter, ".RData")))
   }else{
     Prox_brms <- brm(RelChange ~ 0+PrimProx+IS*RE, # + (1|netID),
                      data = iter_df,
@@ -592,9 +592,9 @@ for(model_iter in TopoPlots){
     save(Prox_brms, file = file.path(Dir.Exports, paste0("PROXCOMP_", model_iter, ".RData")))
   }
   
-  Posterior_df <- posterior_samples(Prox_brms)
+  Posterior_df <- posterior_samples(Prox_brms, pars = "^b_")
   # print(nrow(Posterior_df))
-  ProxyIntercept_df <- inv_logit_scaled(Posterior_df[, 1:4]) #exp
+  ProxyIntercept_df <- inv_logit_scaled(Posterior_df) #exp
   ProxyIntercept_df <- stats::reshape(ProxyIntercept_df,
                                       direction = "long",
                                       varying = colnames(ProxyIntercept_df),
@@ -602,72 +602,99 @@ for(model_iter in TopoPlots){
                                       timevar = "Proxy",
                                       v.names = "Posterior",
   )
-  ProxyIntercept_df$Parameter = "Intercept"
-  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
-                                  pattern = "b_ProxyStrength", replacement = "Centrality")
-  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
-                                  pattern = "b_ProxyClimate", replacement = "SSP245")
-  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
-                                  pattern = "b_ProxySSP585", replacement = "SSP585")
-  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
-                                  pattern = "b_ProxyIUCN", replacement = "IUCN")
+  ProxyIntercept_df$Parameter <- ifelse(
+    startsWith(ProxyIntercept_df$Proxy, "b_PrimProx"), "Drivers", "Resilience"
+  )
+  ProxyIntercept_df$SSP <- factor(gsub(".*?([0-9]+).*", "\\1", ProxyIntercept_df$Proxy))
+  ProxyIntercept_df$Driver <- ProxyIntercept_df$Proxy
+  ProxyIntercept_df$Driver <- gsub(pattern = "b_PrimProx245M", replacement = "", ProxyIntercept_df$Driver)
+  ProxyIntercept_df$Driver <- gsub(pattern = "b_PrimProx585M", replacement = "", ProxyIntercept_df$Driver)
+  
+  # ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
+  #                                 pattern = "b_ProxyStrength", replacement = "Centrality")
+  # ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
+  #                                 pattern = "b_ProxyClimate", replacement = "SSP245")
+  # ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
+  #                                 pattern = "b_ProxySSP585", replacement = "SSP585")
+  # ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
+  #                                 pattern = "b_ProxyIUCN", replacement = "IUCN")
   ProxyIntercept_df$NetworkMetric <- model_iter
   
-  ISRE_df <- inv_logit_scaled(Posterior_df[, c("b_IS", "b_RE", "b_IS:RE")])
-  ISRE_df <- stats::reshape(ISRE_df,
-                                      direction = "long",
-                                      varying = colnames(ISRE_df),
-                                      times = colnames(ISRE_df),
-                                      timevar = "Proxy",
-                                      v.names = "Posterior",
-  )
-  ISRE_df$Parameter = "Resilience"
-  ISRE_df$Proxy <- gsub(ISRE_df$Proxy,
+  # ISRE_df <- inv_logit_scaled(Posterior_df[, c("b_IS", "b_RE", "b_IS:RE")])
+  # ISRE_df <- stats::reshape(ISRE_df,
+  #                                     direction = "long",
+  #                                     varying = colnames(ISRE_df),
+  #                                     times = colnames(ISRE_df),
+  #                                     timevar = "Proxy",
+  #                                     v.names = "Posterior",
+  # )
+  
+  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
                                   pattern = "b_IS", replacement = "LLS")
-  ISRE_df$Proxy <- gsub(ISRE_df$Proxy,
+  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
                                   pattern = "b_RE", replacement = "RPT")
-  ISRE_df$Proxy <- gsub(ISRE_df$Proxy,
+  ProxyIntercept_df$Proxy <- gsub(ProxyIntercept_df$Proxy,
                                   pattern = "LLS:RE", replacement = "Interaction")
-  ISRE_df$NetworkMetric <- model_iter
+  # ISRE_df$NetworkMetric <- model_iter
   
-  Plotting_df <- rbind(Plotting_df, ProxyIntercept_df, ISRE_df)
+  ProxyIntercept_df$PlotYLabels <- factor(paste(ProxyIntercept_df$SSP, 
+                                                ProxyIntercept_df$Driver, 
+                                                sep = " - "))
   
-  # plot_ls[[model_iter]] <- ggplot(ProxyIntercept_df, aes(x = Posterior, 
-  #                                                        y = Proxy)) +
-  #   stat_halfeye() +
-  #   theme_bw() + 
-  #   geom_vline(xintercept = 0, col = "black") +
-  #   labs(title = model_iter) + 
-  #   theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
-  # 
-  # if(model_iter %in% c("n_links", "Nestedness")){
-  #   plot_ls[[model_iter]] <- plot_ls[[model_iter]] + labs(y = NULL)
-  # }
+  Plotting_df <- 
+    # rbind(Plotting_df, 
+    ProxyIntercept_df
+  # )
+  
+  mod_gg <- cowplot::plot_grid(
+    ggplot(Plotting_df[Plotting_df$Parameter == "Drivers",], 
+           aes(x = Posterior, 
+               y = factor(Driver, levels = rev(levels(factor(Driver)))))) + 
+      stat_halfeye(normalize = "xy") +
+      geom_vline(xintercept = 0) +
+      facet_wrap(~SSP, ncol = 2, scales = "free") +
+      theme_bw() + labs(y = "Primary Extinction Risk Proxy")
+    ,
+    ggplot(Plotting_df[Plotting_df$Parameter == "Resilience",], 
+           aes(x = Posterior, 
+               y = factor(Proxy, levels = rev(c("LLS", "RPT", "Interaction"))))) + 
+      stat_halfeye(normalize = "xy") +
+      geom_vline(xintercept = 0) +
+      theme_bw() + labs(y = "Extinction Cascade Resilience Mechanisms"),
+    ncol = 1
+  )
+  ggsave(
+    mod_gg,
+    filename = file.path(Dir.Exports, 
+                         paste0("FIG_ProxyComparison_", 
+                                model_iter, "_.png")), 
+    width = 30/0.6, height = 30/1.2, units = "cm")
+  
 }
-Plotting_df <- Plotting_df[-1,]
-Plotting_df$Proxy <- factor(Plotting_df$Proxy, 
-                                  levels = c("Centrality", "SSP585", "SSP245", "IUCN", "Interaction", "RPT", "LLS"))
-Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
-names(Plot_ls) <- unique(Plotting_df$Parameter)
-for(i in names(Plot_ls)){
-  Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Proxy != "IUCN" & 
-                                       Plotting_df$Proxy != "Centrality" & 
-                                       Plotting_df$Parameter == i, ], 
-                         aes(x = Posterior, y = Proxy)
-  ) +
-    stat_halfeye() +
-    theme_bw() +
-    facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
-    geom_vline(xintercept = 0, col = "black") + 
-    theme(text = element_text(size = 20))
-  # labs(title = model_iter) +
-  # theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
-}
-
-ggsave(
-  cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
-  filename = file.path(Dir.Exports, "FIG4_ProxyComparison-ALL.png"), 
-  width = 30/0.6, height = 30/1.2, units = "cm")
+# Plotting_df <- Plotting_df[-1,]
+# Plotting_df$Proxy <- factor(Plotting_df$Proxy, 
+#                                   levels = c("Centrality", "SSP585", "SSP245", "IUCN", "Interaction", "RPT", "LLS"))
+# Plot_ls <- as.list(rep(NA, length(unique(Plotting_df$Parameter))))
+# names(Plot_ls) <- unique(Plotting_df$Parameter)
+# for(i in names(Plot_ls)){
+#   Plot_ls[[i]] <- ggplot(Plotting_df[Plotting_df$Proxy != "IUCN" & 
+#                                        Plotting_df$Proxy != "Centrality" & 
+#                                        Plotting_df$Parameter == i, ], 
+#                          aes(x = Posterior, y = Proxy)
+#   ) +
+#     stat_halfeye() +
+#     theme_bw() +
+#     facet_wrap(~factor(NetworkMetric, levels = TopoPlots), scales = "free_x") + 
+#     geom_vline(xintercept = 0, col = "black") + 
+#     theme(text = element_text(size = 20))
+#   # labs(title = model_iter) +
+#   # theme(text = element_text(size = 20)) + theme(plot.margin = unit(c(0,3,0,3), "lines"))
+# }
+# 
+# ggsave(
+#   cowplot::plot_grid(plotlist = Plot_ls, ncol = 1),
+#   filename = file.path(Dir.Exports, "FIG4_ProxyComparison-ALL.png"), 
+#   width = 30/0.6, height = 30/1.2, units = "cm")
 
 # # FIGURE 5 - Cascade Comparisons
 # print("########## FIGURE 5")
