@@ -309,7 +309,11 @@ lapply(PlotTopo_ls, FUN = function(SSP_iter){
       colnames(ToComp)[1] <- "CompRel"
       testdf <- merge(ContempComp[ContempComp$Proxy == as.character(Proxyiter), ], ToComp)
       
-      ttest <- t.test(testdf$RelChange, testdf$CompRel, paired = TRUE)
+      
+      
+      
+      ttest <- wilcox.test(testdf$RelChange, testdf$CompRel, paired = TRUE)
+      # ttest <- t.test(testdf$RelChange, testdf$CompRel, paired = TRUE)
       data.frame(
         meandiff = mean(testdf$RelChange-testdf$CompRel),
         Topo = Topoiter,
@@ -325,16 +329,19 @@ lapply(PlotTopo_ls, FUN = function(SSP_iter){
   ttestComp_df$Sig <- ttestComp_df$testp < 0.05
   ttestComp_df$Sig[which(!ttestComp_df$Sig)] <- NA
   
-  ggplot(data = ttestComp_df, 
+  TComp_gg <- ggplot(data = ttestComp_df, 
          aes(x = as.numeric(RE), y = as.numeric(IS),
              fill = meandiff
              )
          ) + 
-    geom_tile() +
-    geom_point(aes(shape = Sig), size = 4.5) + 
-    scale_shape_manual(values=c(0), na.translate = FALSE, name = "Significance") +
+    geom_tile(aes(col = Sig), linewidth = 0.2) +
+    scale_color_manual(values = "black", na.translate = FALSE, name = "Signifance") + 
+    # geom_point(aes(shape = Sig), size = 4.5) +
+    # scale_shape_manual(values=c(0), na.translate = FALSE, name = "Significance") +
+    geom_point(aes(shape = factor(sign(meandiff))), size = 2) +
+    scale_shape_manual(values=c(95, 61, 43), na.translate = FALSE, name = "Over-/Underprediction") + 
     coord_fixed() + 
-    facet_grid(Proxy~factor(Topo, levels = TopoPlots)) + 
+    facet_grid(factor(Topo, levels = TopoPlots) ~ Proxy) + 
     theme_bw() + 
     xlab("") + 
     ylab("") + 
@@ -346,7 +353,11 @@ lapply(PlotTopo_ls, FUN = function(SSP_iter){
     )) + 
     scale_fill_gradient2(low = "darkred", high = "forestgreen") + 
     theme(plot.margin = unit(c(0,0,0,0), "lines"), legend.position = "bottom")
-  
+  TComp_gg <- grid.arrange(arrangeGrob(TComp_gg, left = y.grob, top = x.grob))
+  ggsave(TComp_gg, 
+         filename = file.path(Dir.Exports, 
+                              paste0("FIG_ContempComp_SSP", unique(Change_df$SSP), ".png")),
+         width = 34/1.2, height = 28/1.2, units = "cm")
   
   
   
