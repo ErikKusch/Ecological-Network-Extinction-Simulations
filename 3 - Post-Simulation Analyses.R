@@ -227,241 +227,147 @@ plot.Concept(g2 = Post11_igraph)
 dev.off()
 
 # RESILIENCE LANDSCAPE MATRICES --------------------------------------------
-print("########## Resilience Landscape Matrices (Figures 3, S5, and S6)")
+print("########## Resilience Landscape Matrices")
 
-### Effects relative to pre-extinction network topology ----
-MeanNames <- c("FIGS8", "FIG3", "FIGS7", "FIGS9")
-SDNames <- c("FIGS8", "FIG3", "FIGS7", "FIGS9")
-
-stop("continue here")
-
-RunName = "ALL"
-# for(RunName in names(PlotTopo_ls)){
-Change_df <- PlotTopo_ls[[RunName]]$Change
-
-SSP585_df <- PlotTopoClimSSP585_ls$Change
-SSP585_df <- SSP585_df[SSP585_df$Proxy == "Climate", ]
-SSP585_df$Proxy <- "SSP585"
-SSP585_df$Casc <- "ALL"
-
-Change_df <- rbind(Change_df, SSP585_df)
-
-Proxy_ls <- as.list(rep(NA, length(unique(Change_df$Proxy))))
-names(Proxy_ls) <- unique(Change_df$Proxy)
-
-### Relative Changes ----
-# Change_df <- PlotTopoAll_ls$Change
-# Change_df <- PlotTopo_ls[[RunName]]$Change
-# sink(file = file.path(Dir.Exports, paste0("MODEL_", RunName, ".txt")))
-# 
-# for(ModIter in TopoPlots){
-#   print(paste("###################", ModIter))
-#   print(
-#     summary(lm(RelChange ~ 0 + (IS+RE)*Proxy, 
-#                data = Change_df[model_df$Topology == ModIter, ]))
-#   )
-# }
-# sink()
-
-for(proxy_enum in 1:length(unique(Change_df$Proxy))){
-  proxy_iter <- unique(Change_df$Proxy)[proxy_enum]
-  iter_df <- Change_df[Change_df$Topology %in% TopoPlots & Change_df$Proxy %in% proxy_iter, ]
-  plot_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = mean, data = iter_df)
-  sd_df <- aggregate(RelChange ~ Proxy+Topology+IS+RE, FUN = sd, data = iter_df)
+lapply(PlotTopo_ls, FUN = function(SSP_iter){
+  Change_df <- SSP_iter$Change
+  Change_df <- Change_df[Change_df$Topology %in% TopoPlots, ]
+  EffectSize_df <- SSP_iter$EffectSize
+  RandomSD_df <- SSP_iter$RandomSD
   
-  # iterate my Topology, then fuse plots
-  matplot_ls <- list(Pred = as.list(rep(NA, length(TopoPlots))), SD = as.list(rep(NA, length(TopoPlots))))
+  ## landscapes ----
+  ## calc mean and sd per location and driver
+  Mean_df <- aggregate(x = Change_df, RelChange ~ Topology + IS + RE + Proxy, FUN = mean)
+  SD_df <- aggregate(x = Change_df, RelChange ~ Topology + IS + RE + Proxy, FUN = sd)
+
+  Mean_gg <- ggplot(Mean_df, 
+         aes(x = RE, y = IS)) +
+    geom_tile(aes(fill = RelChange)) +
+    coord_fixed() + 
+    facet_grid(Proxy~factor(Topology, levels = TopoPlots)) + 
+    theme_bw() + 
+    xlab("") + 
+    ylab("") + 
+    guides(fill = guide_colourbar(barwidth = 23.5,
+                                  barheight = 2,
+                                  # title = "Proportional Network Metric Change",
+                                  title = "",
+                                  direction = "horizontal"
+    )) + 
+    scale_fill_viridis("Mean", option = "B", direction = -1) + 
+    theme(plot.margin = unit(c(0,0,0,0), "lines"), legend.position = "bottom")
   
-  for(TopoIter in 1:length(TopoPlots)){
-    plot_df2 <- plot_df[plot_df$Topology == TopoPlots[TopoIter], ]
-    sd_df2 <- sd_df[sd_df$Topology == TopoPlots[TopoIter], ]
-    
-    matplot_ls$Pred[[TopoIter]] <- ggplot(plot_df2, aes(x = RE, y = IS)) +
-      geom_tile(aes(fill = RelChange)) +
-      coord_fixed() + 
-      facet_wrap(~Proxy+Topology, ncol = 2) + 
-      theme_bw() + 
-      # xlab("Probability of Rewiring Required to Realise Novel Links") + 
-      # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
-      xlab("") + 
-      ylab("") + 
-      guides(fill = guide_colourbar(barwidth = 2,
-                                    barheight = 20,
-                                    # title = "Proportional Network Metric Change",
-                                    title = "",
-                                    # title.position = "bottom",
-                                    # direction = "horizontal",
-                                    # legend.location = "bottom"
-      )) + 
-      scale_fill_viridis("Mean", option = "B", direction = -1) + 
-      # theme(legend.position = "bottom") + 
-      # ggtitle(TopoPlots[TopoIter]) + 
-      theme(plot.margin = unit(c(0,0,0,0), "lines"))
-    
-    matplot_ls$SD[[TopoIter]] <- ggplot(sd_df2, aes(x = RE, y = IS)) +
-      geom_tile(aes(fill = RelChange)) +
-      coord_fixed() +
-      facet_wrap(~Proxy+Topology, ncol = 2) + 
-      theme_bw() + 
-      # xlab("Probability of Rewiring Required to Realise Novel Links") + 
-      # ylab("Proportion of Initial Interaction Strength Required for Continued Existence") + 
-      xlab("") + 
-      ylab("") + 
-      guides(fill = guide_colourbar(barwidth = 2,
-                                    barheight = 20,
-                                    # title = "Proportional Network Metric Change",
-                                    title = "",
-                                    # title.position = "bottom",
-                                    # direction = "horizontal",
-                                    # legend.location = "bottom"
-      )) + 
-      scale_fill_viridis("SD", option = "D") + 
-      # theme(legend.position = "bottom") + 
-      # ggtitle(TopoPlots[TopoIter]) + 
-      theme(plot.margin = unit(c(0,0,0,0), "lines"))
-  }
+  SD_gg <- ggplot(SD_df, 
+                  aes(x = RE, y = IS)) +
+    geom_tile(aes(fill = RelChange)) +
+    coord_fixed() + 
+    facet_grid(Proxy~factor(Topology, levels = TopoPlots)) + 
+    theme_bw() + 
+    xlab("") + 
+    ylab("") + 
+    guides(fill = guide_colourbar(barwidth = 23.5,
+                                  barheight = 2,
+                                  # title = "Proportional Network Metric Change",
+                                  title = "",
+                                  direction = "horizontal"
+    )) + 
+    scale_fill_viridis("SD", option = "D") + 
+    theme(plot.margin = unit(c(0,0,0,0), "lines"), legend.position = "bottom")
+  
   y.grob <- textGrob("Proportion of Initial Interaction Strength Required for Continued Existence", 
                      gp=gpar(fontface="bold", col="black", fontsize=15), rot=90)
   x.grob <- textGrob("Probability of Rewiring Required to Realise Novel Links", 
                      gp=gpar(fontface="bold", col="black", fontsize=15))
+  Mats_gg <- cowplot::plot_grid(Mean_gg, ggplot()+theme_void(), SD_gg, ncol = 3, 
+                                rel_widths = c(1, 0.15, 1))
+  MatComb_plot <- grid.arrange(arrangeGrob(Mats_gg, left = y.grob, top = x.grob))
   
-  MatPred_plot <- plot_grid(plotlist = matplot_ls$Pred, nrow = 1)
-  # MatPred_plot <- grid.arrange(arrangeGrob(MatPred_plot, left = y.grob, bottom = x.grob))
-  MatSD_plot <- plot_grid(plotlist = matplot_ls$SD, nrow = 1)
-  # MatSD_plot <- grid.arrange(arrangeGrob(MatSD_plot, left = y.grob, bottom = x.grob))
+  ggsave(MatComb_plot, 
+         filename = file.path(Dir.Exports, 
+                              paste0("FIG_Matrices_SSP", unique(Change_df$SSP), ".png")),
+         width = 34/1.2, height = 28/1.2, units = "cm")
   
-  MatComb_plot <- plot_grid(MatPred_plot, MatSD_plot, ncol = 1, labels = "")
-  MatComb_plot <- grid.arrange(arrangeGrob(MatComb_plot, left = y.grob, bottom = x.grob))
-  
-  # if(proxy_enum == 3){
-  #   ggsave(MatPred_plot, filename = file.path(Dir.Exports, paste0(
-  #     MeanNames[proxy_enum], 
-  #     "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 34/1.2, height = 32/1.2, units = "cm")
-  #   ggsave(MatSD_plot, filename = file.path(Dir.Exports, paste0(
-  #     SDNames[proxy_enum], 
-  #     "_MatrixChange_SD-", RunName, "-", proxy_iter, ".png")), width = 34/1.2, height = 32/1.2, units = "cm") 
-  #   Proxy_ls[[proxy_iter]] <- matplot_ls 
-  # }else{
-    ggsave(MatComb_plot, 
-           filename = file.path(Dir.Exports, paste0(MeanNames[proxy_enum], 
-                                                    "_MatrixChange-", RunName, "-", proxy_iter, ".png")), width = 32/1.2, height = 30/1.2, units = "cm") 
-    Proxy_ls[[proxy_iter]] <- matplot_ls 
-  # }
+  ## comparison to contemporary ----
+  ContempComparison_ls <- lapply(TopoPlots, FUN = function(Topoiter){
+    Contemp_df <- Change_df[Change_df$Topology == Topoiter & 
+                              Change_df$IS == 0 & Change_df$RE == 1, ]
+    ContempComp <- Contemp_df[, c("RelChange", "netID", "Proxy")]
     
-    plot_ls <- lapply(1:nrow(plot_df), FUN = function(i){
-      Cont <- which(iter_df$IS %in% 0 & iter_df$RE %in% 1 & iter_df$Topology %in% plot_df[i,]$Topology)
-      Comp <- which(iter_df$IS %in% plot_df[i,]$IS & iter_df$RE %in% plot_df[i,]$RE & iter_df$Topology %in% plot_df[i,]$Topology)
-      t <- t.test(iter_df[Cont,]$RelChange, iter_df[Comp,]$RelChange)
-      data.frame(IS = plot_df[i,]$IS,
-                 RE = plot_df[i,]$RE,
-                 Topology = plot_df[i,]$Topology,
-                 p = t$p.value,
-                 diff = t$estimate[1]-t$estimate[2] #contemporary mean - comparison mean
-      )
+    Comgrid <- expand.grid(unique(Change_df$RE), unique(Change_df$IS), unique(Change_df$Proxy))
+    colnames(Comgrid) <- c("RE", "IS", "Proxy")
+    
+    contempttest <- apply(Comgrid, 1, FUN = function(rowiter){
+      REiter <- rowiter[1]
+      ISiter <- rowiter[2]
+      Proxyiter <- rowiter[3]
+      
+      ToComp <- Change_df[Change_df$Topology == Topoiter & 
+                            Change_df$RE == as.numeric(REiter) & 
+                            Change_df$IS == as.numeric(ISiter) & 
+                            Change_df$Proxy == as.character(Proxyiter), 
+                          c("RelChange", "netID")]
+      colnames(ToComp)[1] <- "CompRel"
+      testdf <- merge(ContempComp[ContempComp$Proxy == as.character(Proxyiter), ], ToComp)
+      
+      ttest <- t.test(testdf$RelChange, testdf$CompRel, paired = TRUE)
+      data.frame(
+        meandiff = mean(testdf$RelChange-testdf$CompRel),
+        Topo = Topoiter,
+        RE = REiter,
+        IS = ISiter,
+        Proxy = Proxyiter,
+        testval = ttest$statistic,
+        testp = ttest$p.value)
     })
-    plot_df <- do.call(rbind, plot_ls)
-    plot_df$Proxy <- proxy_iter
-    
-    tplot <- ggplot(plot_df, aes(x = RE, y = IS)) +
-      geom_tile(aes(fill = diff)) +
-      geom_point(aes(shape = p < 0.05), size = 10) + 
-      coord_fixed() + 
-      facet_wrap(~Proxy+Topology, ncol = 2) + 
-      theme_bw() + 
-      xlab("Probability of Rewiring Required to Realise Novel Links") +
-      ylab("Proportion of Initial Interaction Strength Required for Continued Existence") +
-      # xlab("") + 
-      # ylab("") + 
-      scale_fill_gradient2(high = "forestgreen", low = "darkred", name = "Difference") +
-      guides(fill = guide_colourbar(barwidth = 2,
-                                    barheight = 30,
-                                    title = "Over-/Underprediction \n of Network Change",
-                                    # title.position = "bottom",
-                                    # direction = "horizontal",
-                                    # legend.location = "bottom"
-      )) + 
-      scale_shape_manual(values = c(NA, 0), name = "Significant") + # 15
-      # theme(legend.position = "bottom") + 
-      # ggtitle(TopoPlots[TopoIter]) + 
-      theme(plot.margin = unit(c(0,0,0,0), "lines")) + 
-      guides(shape = "none")
-    ggsave(tplot, 
-           filename = file.path(Dir.Exports, paste0("FIGSX", 
-                                                    "_T-TestOverUnder-", RunName, "-", proxy_iter, ".png")), width = 32/0.75, height = 30/1.2, units = "cm") 
-    
-}
-# RelChangePlots_ls <- Proxy_ls
-# }
+    do.call(rbind, contempttest)
+  })
+  ttestComp_df <- do.call(rbind, ContempComparison_ls)
+  ttestComp_df$Sig <- ttestComp_df$testp < 0.05
+  ttestComp_df$Sig[which(!ttestComp_df$Sig)] <- NA
+  
+  ggplot(data = ttestComp_df, 
+         aes(x = as.numeric(RE), y = as.numeric(IS),
+             fill = meandiff
+             )
+         ) + 
+    geom_tile() +
+    geom_point(aes(shape = Sig), size = 4.5) + 
+    scale_shape_manual(values=c(0), na.translate = FALSE, name = "Significance") +
+    coord_fixed() + 
+    facet_grid(Proxy~factor(Topo, levels = TopoPlots)) + 
+    theme_bw() + 
+    xlab("") + 
+    ylab("") + 
+    guides(fill = guide_colourbar(barwidth = 23.5,
+                                  barheight = 2,
+                                  # title = "Proportional Network Metric Change",
+                                  title = "",
+                                  direction = "horizontal"
+    )) + 
+    scale_fill_gradient2(low = "darkred", high = "forestgreen") + 
+    theme(plot.margin = unit(c(0,0,0,0), "lines"), legend.position = "bottom")
+  
+  
+  
+  
+  ## effect sizes ----
+  
+})
 
 # NETWORK DATA LOCATIONS ---------------------------------------------------
 print("########## FIGURE S4")
 ggplot(data = world) +
   theme_minimal_grid() + 
   geom_sf(color = "black",
-          size = 0.2
-          ,
-          # aes(fill = factor(samplenets))
+          size = 0.2,
           fill = "white"
   ) + 
-  # scale_fill_viridis_d(option = "B") +
   geom_point(data = map_df, aes(x = longitude, y = latitude), pch = 17, size = 3, col = "darkred") +
   xlab("Longitude") + ylab("Latitude") +
   labs(fill = "", title = "Network Sampling Sites") + 
   theme(plot.title = element_text(hjust = 0.5))
-# theme(legend.position = "bottom") + 
-# guides(fill = guide_legend(nrow=1))
 
 ggsave(filename = file.path(Dir.Exports, "FIGS4_NetworksCountries.png"), width = 16/2, height = 9/2, units = "cm", scale = 3, dpi = 1e3)
-
-
-# # FIGURE S5 - Extinction proxy Overlap
-# print("########## FIGURE S5")
-# pal_lm <- c("#016392", "#E19825", "#3E8853")
-# RunName = "ALL"
-# # for(RunName in c("ALL", "Plants", "Animals")){
-# ExtSpecies_ls <- FUN_SimComp(PlantAnim = NULL, RunName = RunName, IS = 1, Rewiring = 1, CutOffs = CutOffs)
-# 
-# # ## number of primary extinctions per proxy
-# # Clim_ls <- lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed")
-# # IUCN_ls <- lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed")
-# # Centr_ls <- lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed")
-# # ClimIUCN_ls <- lapply(1:length(Clim_ls), function(x){sum(Clim_ls[[x]] %in% IUCN_ls[[x]])})
-# # ClimCentr_ls <- lapply(1:length(Clim_ls), function(x){sum(Clim_ls[[x]] %in% Centr_ls[[x]])})
-# # IUCNCentr_ls <- lapply(1:length(Clim_ls), function(x){sum(IUCN_ls[[x]] %in% Centr_ls[[x]])})
-# # All_ls <- lapply(1:length(Clim_ls), function(x){
-# #   sum(
-# #     IUCN_ls[[x]][IUCN_ls[[x]] %in% Centr_ls[[x]]] %in% Clim_ls[[x]]
-# #     )
-# #   })
-# # ## absolute numbers of primary extinctions per network
-# # PrimaryExt_df <- data.frame(
-# #   Climate = unlist(lapply(Clim_ls, length)),
-# #   IUCN = unlist(lapply(IUCN_ls, length)),
-# #   Centrality = unlist(lapply(Centr_ls, length)),
-# #   `Climate+IUCN` = unlist(ClimIUCN_ls),
-# #   `Climate+Centrality` = unlist(ClimCentr_ls),
-# #   `IUCN+Centrality` = unlist(IUCNCentr_ls),
-# #   All = unlist(All_ls)
-# # )
-# # ## relative numbers of primary extinctions per network
-# # PrimaryExt_df <- apply(X = PrimaryExt_df, MARGIN = 2, function(x){
-# #   x/PreExt_df$n_species
-# # })
-# # 
-# # ## summary statistics
-# # PrimExt_df <- data.frame(min = apply(PrimaryExt_df, 2, min),
-# #                          mean = apply(PrimaryExt_df, 2, mean),
-# #                          max = apply(PrimaryExt_df, 2, max),
-# #                          sd = apply(PrimaryExt_df, 2, sd))
-# # print(PrimExt_df)
-# 
-# ## Total Venn-Diagram
-# Venn_ls <- list(Climate = unlist(lapply(lapply(ExtSpecies_ls, "[[", "Climate"), "[[", "Removed")),
-#                 IUCN = unlist(lapply(lapply(ExtSpecies_ls, "[[", "IUCN"), "[[", "Removed")),
-#                 Centrality = unlist(lapply(lapply(ExtSpecies_ls, "[[", "Strength"), "[[", "Removed")))
-# ggvenn(Venn_ls, fill_color = pal_lm, fill_alpha = 0.8, text_color = "white")
-# ggsave(filename = file.path(Dir.Exports, paste0("FIGS5_Proxy", RunName,".png")), width = 4, height = 3, units = "cm", scale = 7, dpi = 1e3)
-# # }
 
 # EFFECT SIZES -------------------------------------------------------------
 # print("########## FIGURE S10")
@@ -652,23 +558,25 @@ for(model_iter in TopoPlots){
                y = factor(Driver, levels = rev(levels(factor(Driver)))))) + 
       stat_halfeye(normalize = "xy") +
       geom_vline(xintercept = 0) +
-      facet_wrap(~SSP, ncol = 2, scales = "free") +
-      theme_bw() + labs(y = "Primary Extinction Risk Proxy")
+      facet_wrap(~SSP, ncol = 1, scales = "free") +
+      theme_bw() + labs(y = "Primary Extinction Risk Proxy") + 
+      theme(strip.text = element_text(size = 20))
     ,
+    ggplot() + theme_void(),
     ggplot(Plotting_df[Plotting_df$Parameter == "Resilience",], 
            aes(x = Posterior, 
                y = factor(Proxy, levels = rev(c("LLS", "RPT", "Interaction"))))) + 
       stat_halfeye(normalize = "xy") +
       geom_vline(xintercept = 0) +
       theme_bw() + labs(y = "Extinction Cascade Resilience Mechanisms"),
-    ncol = 1
+    ncol = 3, rel_widths = c(1, 0.05, 1.2)
   )
   ggsave(
     mod_gg,
     filename = file.path(Dir.Exports, 
                          paste0("FIG_ProxyComparison_", 
                                 model_iter, "_.png")), 
-    width = 30/0.6, height = 30/1.2, units = "cm")
+    width = 13*2.4, height = 6.5*2.4, units = "cm")
   
 }
 # Plotting_df <- Plotting_df[-1,]
