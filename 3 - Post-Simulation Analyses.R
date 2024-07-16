@@ -298,7 +298,7 @@ lapply(PlotTopo_ls, FUN = function(SSP_iter){
     colnames(Comgrid) <- c("RE", "IS", "Proxy")
     
     contempttest <- apply(Comgrid, 1, FUN = function(rowiter){
-      print(rowiter)
+      # print(rowiter)
       REiter <- rowiter[1]
       ISiter <- rowiter[2]
       Proxyiter <- rowiter[3]
@@ -538,7 +538,7 @@ for(model_iter in TopoPlots){
                y = factor(Driver, levels = rev(levels(factor(Driver)))))) + 
       stat_halfeye(normalize = "xy") +
       geom_vline(xintercept = 0) +
-      facet_wrap(~SSP, ncol = 1, scales = "free") +
+      facet_wrap(~SSP, ncol = 1, scales = "free_y") +
       theme_bw() + labs(y = "Primary Extinction Risk Proxy") + 
       theme(strip.text = element_text(size = 20))
     ,
