@@ -538,7 +538,8 @@ for(model_iter in TopoPlots){
                y = factor(Driver, levels = rev(levels(factor(Driver)))))) + 
       stat_halfeye(normalize = "xy") +
       geom_vline(xintercept = 0) +
-      facet_wrap(~SSP, ncol = 1, scales = "free_y") +
+      facet_wrap(~SSP, ncol = 1, scales = "free") +
+      lims(x = c(0, max(Plotting_df[Plotting_df$Parameter == "Drivers","Posterior"])+0.05)) +
       theme_bw() + labs(y = "Primary Extinction Risk Proxy") + 
       theme(strip.text = element_text(size = 20))
     ,
