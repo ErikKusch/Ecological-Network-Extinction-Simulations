@@ -69,7 +69,10 @@ package_vec <- c(
   "tidybayes", # for brms output visualisations
   "NetworkExtinction", # for network extinction simulations
   "boot", # for bootstrapping of niches
-  "iterators"
+  "iterators",
+  "sf",
+  "terra",
+  "sp"
 )
 sapply(package_vec, install.load.package)
 
