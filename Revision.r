@@ -30,6 +30,8 @@ load(file.path(Dir.Data, "AnalysesData.RData")) # load the data needed for the a
 #' - Prox.Centrality_ls: List object of which each element is a named vector that sorts the species for each network in our study from most to least central (as measured by connection strength)
 rm(Prox.Centrality)
 #' - Prox.Climate_ls: List object of which each element a list containing a named vector that sorts the species for each network in our study from most to least at risk from a climate-standpoint and a dataframe showing the climate risk for each species for temperature and soil moisture
+rm(Prox.Climate_ls)
+#' - ProxClim_ls: List object containing Prox.Climate_ls for both ssps
 #' - Prox.IUCN_df: data frame containing IUCN criteria for all species in our analyses. NOT ANYMORE
 rm(Prox.IUCN_df)
 #' - traits_df: data frame of trait expressions per species in our analysis
@@ -230,8 +232,150 @@ if (file.exists(FNAME)) {
 }
 
 ## Safety Margin Comparison ------------------------------------------------
+approaches_ls <- lapply(list(ProxClim_ls, Prox.INat.Climate_ls), FUN = function(Approach) {
+    # Approach <- ProxClim_ls
+
+    data_ls <- lapply(names(Approach), FUN = function(ssp) {
+        # ssp <- names(Approach)[1]
+        Nets_ls <- Approach[[ssp]]
+        df_ls <- lapply(names(Nets_ls), FUN = function(index) {
+            df <- Nets_ls[[index]]$ClimRisk
+            # df$Approach <- "GBIF"
+            df$ssp <- ssp
+            df$net.id <- index
+            df
+        })
+        do.call(rbind, df_ls)
+    })
+    do.call(rbind, data_ls)
+})
+# revis_climprox_df <- do.call(rbind, ssp_ls)
+revis_climprox_df <- full_join(
+    approaches_ls[[1]], approaches_ls[[2]],
+    by = c("species", "net.id", "ssp")
+)
+colnames(revis_climprox_df) <- c("species", "Tair_GBIF", "Qsoil_GBIF", "ssp", "net.id", "Tair_INat", "Qsoil_INat")
+head(revis_climprox_df)
+revis_climprox_df <- na.omit(revis_climprox_df)
 
 
+
+TairSsp245 <- cor.test(
+    revis_climprox_df$Tair_GBIF[revis_climprox_df$ssp == "ssp245"],
+    revis_climprox_df$Tair_INat[revis_climprox_df$ssp == "ssp245"]
+)
+TairSsp585 <- cor.test(
+    revis_climprox_df$Tair_GBIF[revis_climprox_df$ssp == "ssp585"],
+    revis_climprox_df$Tair_INat[revis_climprox_df$ssp == "ssp585"]
+)
+QsoilSsp245 <- cor.test(
+    revis_climprox_df$Qsoil_GBIF[revis_climprox_df$ssp == "ssp245" & revis_climprox_df$species %in% rownames(plants_gowdis)],
+    revis_climprox_df$Qsoil_INat[revis_climprox_df$ssp == "ssp245" & revis_climprox_df$species %in% rownames(plants_gowdis)]
+)
+QsoilSsp585 <- cor.test(
+    revis_climprox_df$Qsoil_GBIF[revis_climprox_df$ssp == "ssp585" & revis_climprox_df$species %in% rownames(plants_gowdis)],
+    revis_climprox_df$Qsoil_INat[revis_climprox_df$ssp == "ssp585" & revis_climprox_df$species %in% rownames(plants_gowdis)]
+)
+
+labels_df <- data.frame(
+    label =
+        c(
+            TairSsp245$estimate, TairSsp585$estimate,
+            QsoilSsp245$estimate, QsoilSsp585$estimate
+        ),
+    X = c(-20, -20, 7, 7),
+    Y = c(-20, -20, -1, -1),
+    Margin = c("Tair", "Tair", "Qsoil", "Qsoil"),
+    ssp = c("ssp245", "ssp585", "ssp245", "ssp585")
+)
+
+
+Tair_gg <- ggplot(revis_climprox_df, aes(x = Tair_GBIF, y = Tair_INat)) +
+    geom_point() +
+    stat_smooth(method = "lm") +
+    geom_label(
+        data = labels_df[labels_df$Margin == "Tair", ],
+        aes(label = paste("Corr =", round(label, 3)), x = X, y = Y),
+        size = 3, fill = "white"
+    ) +
+    theme_bw() +
+    facet_wrap(~ssp) +
+    labs(y = "INaturalist", x = "GBIF")
+
+Qsoil_gg <- ggplot(
+    revis_climprox_df[revis_climprox_df$species %in% rownames(plants_gowdis), ],
+    aes(x = Qsoil_GBIF, y = Qsoil_INat)
+) +
+    geom_point() +
+    stat_smooth(method = "lm") +
+    geom_label(
+        data = labels_df[labels_df$Margin == "Qsoil", ],
+        aes(label = paste("Corr =", round(label, 3)), x = X, y = Y),
+        size = 3, fill = "white"
+    ) +
+    theme_bw() +
+    facet_wrap(~ssp) +
+    labs(y = "INaturalist", x = "GBIF")
+
+p <- cowplot::plot_grid(
+    label_row("(A) Air Temperature"),
+    Tair_gg,
+    label_row("(B) Soil Moisture"),
+    Qsoil_gg,
+    ncol = 1, rel_heights = c(0.1, 1, 0.1, 1)
+)
+
+ggsave(p, file = file.path(Dir.Exports, "Revision_ClimateSafetyMargins.png"), width = 7, height = 7)
+
+
+stop("assess congruency of primary extinction pools per network")
+
+revis_climprox_df$group <- "Animals"
+revis_climprox_df$group[revis_climprox_df$species %in% rownames(plants_gowdis)] <- "Plants"
+
+
+Exts_df <- do.call(
+    rbind,
+    apply(revis_climprox_df, 1, FUN = function(x) {
+        # x <- revis_climprox_df[1,]
+        # print(x)
+
+        if (tail(x, 1) == "Plants") {
+            GBIF_ext <- any(abs(as.numeric(x[2:3])) > 2)
+            INat_ext <- any(abs(as.numeric(x[6:7])) > 2)
+        } else {
+            GBIF_ext <- abs(as.numeric(x[2])) > 2
+            INat_ext <- abs(as.numeric(x[6])) > 2
+        }
+        data.frame(
+            GBIF_ext = GBIF_ext,
+            INat_ext = INat_ext
+        )
+    })
+)
+
+revis_climprox_df <- cbind(revis_climprox_df, Exts_df)
+
+## total number of extinctions identified for shared species set
+sum(revis_climprox_df$GBIF_ext)
+sum(revis_climprox_df$INat_ext)
+
+## total congruency (percentage of extinction identified by both approaches)
+sum(revis_climprox_df$GBIF_ext + revis_climprox_df$INat_ext == 2) / nrow(revis_climprox_df)
+
+## plant congruency
+sum(
+    revis_climprox_df$GBIF_ext[revis_climprox_df$group == "Plants"] +
+        revis_climprox_df$INat_ext[revis_climprox_df$group == "Plants"]
+    == 2
+) / sum(revis_climprox_df$group == "Plants")
+
+## animal congruency
+sum(
+    revis_climprox_df$GBIF_ext[revis_climprox_df$group == "Animals"] +
+        revis_climprox_df$INat_ext[revis_climprox_df$group == "Animals"]
+    == 2
+) / sum(revis_climprox_df$group == "Animals")
 
 # PHYLOGENETIC SIGNAL ON TRAITS ============================================
 # compare gowdis (which is already calculated) to phylogenetic distance of animals and plants respectively
