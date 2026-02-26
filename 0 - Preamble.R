@@ -72,7 +72,9 @@ package_vec <- c(
   "iterators",
   "sf",
   "terra",
-  "sp"
+  "sp",
+  "VennDiagram",
+  "ggrepel"
 )
 sapply(package_vec, install.load.package)
 

@@ -45,7 +45,7 @@ load(file.path(Dir.Data, "ClimPrefs.RData")) # loads Preferences_df
 load(file.path(Dir.Data, "Prox_Climate.RData")) # loads Prox.Climate_ls; a list of two elements (ssp245 and ssp585) that are lists where each element corresponds to a network and containg `Order` (order of primary extinctions) and `ClimRisk` (a data frame reporting climate safety margins for each species)
 
 ## INaturalist Climate Safety Margins --------------------------------------
-### INaturalist ranges ++++++++++
+### INaturalist ranges ----------
 if (file.exists(file.path(Dir.Data, "Revision_INAT.RData"))) {
     load(file.path(Dir.Data, "Revision_INAT.RData"))
 } else {
@@ -126,7 +126,7 @@ if (file.exists(file.path(Dir.Data, "Revision_INAT.RData"))) {
     unlink(paste0("INAT_", Preferences_df$spec, ".RData"))
 }
 
-### Safety Margin Computation ++++++++++
+### Safety Margin Computation ----------
 ssps <- c("ssp245", "ssp585")
 
 FNAME <- file.path(Dir.Data, "Revision_INAT_ClimateSafetyMargins.RData")
@@ -232,6 +232,7 @@ if (file.exists(FNAME)) {
 }
 
 ## Safety Margin Comparison ------------------------------------------------
+### Data Combination ----------
 approaches_ls <- lapply(list(ProxClim_ls, Prox.INat.Climate_ls), FUN = function(Approach) {
     # Approach <- ProxClim_ls
 
@@ -255,11 +256,35 @@ revis_climprox_df <- full_join(
     by = c("species", "net.id", "ssp")
 )
 colnames(revis_climprox_df) <- c("species", "Tair_GBIF", "Qsoil_GBIF", "ssp", "net.id", "Tair_INat", "Qsoil_INat")
-head(revis_climprox_df)
 revis_climprox_df <- na.omit(revis_climprox_df)
+revis_climprox_df[, c(2:3, 6:7)] <- abs(revis_climprox_df[, c(2:3, 6:7)])
+head(revis_climprox_df)
 
+revis_climprox_df$group <- "Animals"
+revis_climprox_df$group[revis_climprox_df$species %in% rownames(plants_gowdis)] <- "Plants"
 
+Exts_df <- do.call(
+    rbind,
+    apply(revis_climprox_df, 1, FUN = function(x) {
+        # x <- revis_climprox_df[1,]
+        # print(x)
 
+        if (tail(x, 1) == "Plants") {
+            GBIF_ext <- any(abs(as.numeric(x[2:3])) > 2)
+            INat_ext <- any(abs(as.numeric(x[6:7])) > 2)
+        } else {
+            GBIF_ext <- abs(as.numeric(x[2])) > 2
+            INat_ext <- abs(as.numeric(x[6])) > 2
+        }
+        data.frame(
+            GBIF_ext = GBIF_ext,
+            INat_ext = INat_ext
+        )
+    })
+)
+revis_climprox_df <- cbind(revis_climprox_df, Exts_df)
+
+### Correlation of Margins ----------
 TairSsp245 <- cor.test(
     revis_climprox_df$Tair_GBIF[revis_climprox_df$ssp == "ssp245"],
     revis_climprox_df$Tair_INat[revis_climprox_df$ssp == "ssp245"]
@@ -283,20 +308,30 @@ labels_df <- data.frame(
             TairSsp245$estimate, TairSsp585$estimate,
             QsoilSsp245$estimate, QsoilSsp585$estimate
         ),
-    X = c(-20, -20, 7, 7),
-    Y = c(-20, -20, -1, -1),
+    X = c(30, 30, 7.5, 7.5),
+    Y = c(2.5, 2.5, 1, 1),
     Margin = c("Tair", "Tair", "Qsoil", "Qsoil"),
     ssp = c("ssp245", "ssp585", "ssp245", "ssp585")
 )
 
-
 Tair_gg <- ggplot(revis_climprox_df, aes(x = Tair_GBIF, y = Tair_INat)) +
     geom_point() +
     stat_smooth(method = "lm") +
+    geom_vline(xintercept = 2, linetype = "dashed") +
+    geom_hline(yintercept = 2, linetype = "dashed") +
     geom_label(
         data = labels_df[labels_df$Margin == "Tair", ],
-        aes(label = paste("Corr =", round(label, 3)), x = X, y = Y),
+        aes(label = paste("Correlation =", round(label, 3)), x = X, y = Y),
         size = 3, fill = "white"
+    ) +
+    geom_text(
+        data = subset(
+            revis_climprox_df,
+            Tair_GBIF > 30
+        ),
+        aes(label = species),
+        hjust = 1.1,
+        size = 3
     ) +
     theme_bw() +
     facet_wrap(~ssp) +
@@ -308,74 +343,123 @@ Qsoil_gg <- ggplot(
 ) +
     geom_point() +
     stat_smooth(method = "lm") +
+    geom_vline(xintercept = 2, linetype = "dashed") +
+    geom_hline(yintercept = 2, linetype = "dashed") +
     geom_label(
         data = labels_df[labels_df$Margin == "Qsoil", ],
-        aes(label = paste("Corr =", round(label, 3)), x = X, y = Y),
+        aes(label = paste("Correlation =", round(label, 3)), x = X, y = Y),
         size = 3, fill = "white"
+    ) +
+    ggrepel::geom_text_repel(
+        data = subset(
+            revis_climprox_df,
+            species %in% rownames(plants_gowdis) & Qsoil_GBIF > 10
+        ),
+        aes(label = species),
+        hjust = 1,
+        nudge_x = -0.1,
+        size = 3,
+        box.padding = 0.5, # space around text
+        point.padding = 0.3, # space between text and point
+        max.overlaps = Inf # ensures all labels attempt to appear
     ) +
     theme_bw() +
     facet_wrap(~ssp) +
     labs(y = "INaturalist", x = "GBIF")
 
+### Congruency of Primary Extinctions ----------
+Congruency_df <- do.call(
+    rbind,
+    lapply(ssps, FUN = function(ssp) {
+        Iter_df <- revis_climprox_df[revis_climprox_df$ssp == ssp, ]
+
+        plants_total <- sum(Iter_df$species %in% rownames(plants_gowdis))
+        Ext_plants_g <- sum(Iter_df$GBIF_ext[Iter_df$species %in% rownames(plants_gowdis)])
+        Ext_plants_i <- sum(Iter_df$INat_ext[Iter_df$species %in% rownames(plants_gowdis)])
+        Ext_plants_both <- sum(Iter_df$GBIF_ext[Iter_df$species %in% rownames(plants_gowdis)] + Iter_df$INat_ext[Iter_df$species %in% rownames(plants_gowdis)] == 2)
+
+        animals_total <- sum(Iter_df$species %in% rownames(animals_gowdis))
+        Ext_animals_g <- sum(Iter_df$GBIF_ext[Iter_df$species %in% rownames(animals_gowdis)])
+        Ext_animals_i <- sum(Iter_df$INat_ext[Iter_df$species %in% rownames(animals_gowdis)])
+        Ext_animals_both <- sum(Iter_df$GBIF_ext[Iter_df$species %in% rownames(animals_gowdis)] + Iter_df$INat_ext[Iter_df$species %in% rownames(animals_gowdis)] == 2)
+
+        data.frame(
+            Values = c(
+                plants_total, Ext_plants_g, Ext_plants_i, Ext_plants_both,
+                animals_total, Ext_animals_g, Ext_animals_i, Ext_animals_both
+            ),
+            Groups = rep(c("Plants", "Animals"), each = 4),
+            Approach = rep(c("Number of Species", "GBIF", "INaturalist", "Shared"), 2),
+            ssp = ssp
+        )
+    })
+)
+
+venn_counts <- Congruency_df %>%
+    filter(Approach %in% c("GBIF", "INaturalist", "Shared")) %>%
+    tidyr::pivot_wider(
+        names_from = Approach,
+        values_from = Values
+    )
+
+groups <- unique(venn_counts$Groups)
+ssps <- unique(venn_counts$ssp)
+
+venn_ls <- lapply(seq_along(ssps), FUN = function(i) {
+    ret_ls <- lapply(seq_along(groups), FUN = function(j) {
+        row <- venn_counts %>%
+            filter(Groups == groups[j], ssp == ssps[i])
+
+        venn_gg <- draw.pairwise.venn(
+            area1 = row$GBIF,
+            area2 = row$INaturalist,
+            cross.area = row$Shared,
+            category = c("GBIF", "iNat"),
+            fill = c("#1f78b4", "#33a02c"),
+            alpha = 0.75,
+            ext.text = FALSE,
+            scaled = TRUE,
+            cex = 0.9, # shrink counts
+            cat.cex = 1,
+            ind = FALSE
+        )
+        ggdraw(venn_gg)
+    })
+    names(ret_ls) <- groups
+    ret_ls
+})
+names(venn_ls) <- ssps
+Cong_gg <- cowplot::plot_grid(
+    cowplot::plot_grid(
+        label_row("     I - Animals"),
+        venn_ls[["ssp245"]]$Animals,
+        label_row("     II - Plants"),
+        venn_ls[["ssp245"]]$Plants,
+        rel_heights = c(0.1, 1, 0.1, 1),
+        ncol = 1
+    ),
+    cowplot::plot_grid(
+        label_row("     I - Animals"),
+        venn_ls[["ssp585"]]$Animals,
+        label_row("     II - Plants"),
+        venn_ls[["ssp585"]]$Plants,
+        rel_heights = c(0.1, 1, 0.1, 1),
+        ncol = 1
+    ),
+    ncol = 2
+)
+
+### Saving Plot ----------
 p <- cowplot::plot_grid(
     label_row("(A) Air Temperature"),
     Tair_gg,
     label_row("(B) Soil Moisture"),
     Qsoil_gg,
-    ncol = 1, rel_heights = c(0.1, 1, 0.1, 1)
+    label_row("(C) Primary Extinction Congruency"),
+    Cong_gg,
+    ncol = 1, rel_heights = c(0.1, 1, 0.1, 1, 0.1, 1.5)
 )
-
-ggsave(p, file = file.path(Dir.Exports, "Revision_ClimateSafetyMargins.png"), width = 7, height = 7)
-
-
-stop("assess congruency of primary extinction pools per network")
-
-revis_climprox_df$group <- "Animals"
-revis_climprox_df$group[revis_climprox_df$species %in% rownames(plants_gowdis)] <- "Plants"
-
-
-Exts_df <- do.call(
-    rbind,
-    apply(revis_climprox_df, 1, FUN = function(x) {
-        # x <- revis_climprox_df[1,]
-        # print(x)
-
-        if (tail(x, 1) == "Plants") {
-            GBIF_ext <- any(abs(as.numeric(x[2:3])) > 2)
-            INat_ext <- any(abs(as.numeric(x[6:7])) > 2)
-        } else {
-            GBIF_ext <- abs(as.numeric(x[2])) > 2
-            INat_ext <- abs(as.numeric(x[6])) > 2
-        }
-        data.frame(
-            GBIF_ext = GBIF_ext,
-            INat_ext = INat_ext
-        )
-    })
-)
-
-revis_climprox_df <- cbind(revis_climprox_df, Exts_df)
-
-## total number of extinctions identified for shared species set
-sum(revis_climprox_df$GBIF_ext)
-sum(revis_climprox_df$INat_ext)
-
-## total congruency (percentage of extinction identified by both approaches)
-sum(revis_climprox_df$GBIF_ext + revis_climprox_df$INat_ext == 2) / nrow(revis_climprox_df)
-
-## plant congruency
-sum(
-    revis_climprox_df$GBIF_ext[revis_climprox_df$group == "Plants"] +
-        revis_climprox_df$INat_ext[revis_climprox_df$group == "Plants"]
-    == 2
-) / sum(revis_climprox_df$group == "Plants")
-
-## animal congruency
-sum(
-    revis_climprox_df$GBIF_ext[revis_climprox_df$group == "Animals"] +
-        revis_climprox_df$INat_ext[revis_climprox_df$group == "Animals"]
-    == 2
-) / sum(revis_climprox_df$group == "Animals")
+ggsave(p, file = file.path(Dir.Exports, "Revision_ClimateSafetyMargins.png"), width = 20 / 1.8, height = 22 / 1.8)
 
 # PHYLOGENETIC SIGNAL ON TRAITS ============================================
 # compare gowdis (which is already calculated) to phylogenetic distance of animals and plants respectively
