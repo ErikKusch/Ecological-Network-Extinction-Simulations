@@ -463,3 +463,84 @@ ggsave(p, file = file.path(Dir.Exports, "Revision_ClimateSafetyMargins.png"), wi
 
 # PHYLOGENETIC SIGNAL ON TRAITS ============================================
 # compare gowdis (which is already calculated) to phylogenetic distance of animals and plants respectively
+# install.packages("rotl")
+library(ape)
+library(rotl)
+
+phylo_trait_corr <- lapply(list(
+    animals_gowdis,
+    plants_gowdis
+), FUN = function(dist_obj) {
+    # print(head(dist_obj))
+    # dist_obj <- plants_gowdis
+
+    species <- rownames(dist_obj)
+    # Match species in Open Tree of Life
+    matched <- tnrs_match_names(names = species)
+    # Keep only species with valid OTT IDs
+    valid_ids <- matched$ott_id[!is.na(matched$ott_id)]
+    tree <- tol_induced_subtree(
+        ott_ids = valid_ids[valid_ids %nin% c(5524967, 3907331)] # these give errors
+    )
+    # plot(tree)
+    # tree
+
+    # Extract tip labels from tree
+    tree_tips <- tree$tip.label
+
+    # Remove OTT IDs for easier matching
+    tip_names <- gsub(pattern = "_", replacement = " ", sub("_ott.*$", "", tree_tips))
+
+    # Match your species
+    my_species <- rownames(dist_obj)
+    present <- my_species[my_species %in% tip_names]
+    absent <- my_species[!my_species %in% tip_names]
+
+    # cat("Present species:\n")
+    # print(length(present))
+    # cat("Absent species:\n")
+    # print(length(absent))
+
+    # Find tip labels in the tree corresponding to present species
+    present_tips <- tree_tips[tip_names %in% present]
+
+    # Prune tree to only these tips
+    pruned_tree <- drop.tip(tree, setdiff(tree$tip.label, present_tips))
+
+    # calculate distance
+    phylo_dist <- cophenetic(pruned_tree) # tree has no branch length, so only topological distances
+    # phylo_dist
+
+    colnames(phylo_dist) <- gsub(pattern = "_", replacement = " ", sub("_ott.*$", "", colnames(phylo_dist)))
+    rownames(phylo_dist) <- gsub(pattern = "_", replacement = " ", sub("_ott.*$", "", rownames(phylo_dist)))
+
+    # dim(phylo_dist)
+    # dim(dist_obj)
+
+    # Get species names from each matrix
+    phylo_species <- rownames(phylo_dist)
+    trait_species <- rownames(dist_obj)
+
+    # Identify shared species
+    shared_species <- intersect(phylo_species, trait_species)
+    # length(shared_species) # optional: see how many overlap
+
+    # Subset phylogenetic distance matrix
+    phylo_dist_sub <- phylo_dist[shared_species, shared_species]
+
+    # Subset trait distance matrix
+    trait_dist_sub <- dist_obj[shared_species, shared_species]
+
+    # Extract lower triangle values
+    phylo_vec <- phylo_dist_sub[lower.tri(phylo_dist_sub)]
+    trait_vec <- trait_dist_sub[lower.tri(trait_dist_sub)]
+
+    # plot(phylo_vec, trait_vec)
+
+    # Quick correlation
+    cortest <- cor.test(phylo_vec, trait_vec, method = "pearson")
+    print(cortest)
+    return(cortest)
+})
+names(phylo_trait_corr) <- c("Animals", "Plants")
+phylo_trait_corr
